@@ -78,27 +78,37 @@ export default function ExamOverview() {
     if (!bank || !authorName.trim() || !hasConsent) return;
     setIsCategorizing(true);
     try {
-      const { category, tags } = await categorizeBank(bank.name, bank.questions);
+      // Only categorize if not already categorized
+      let category = bank.category;
+      let tags = bank.tags;
+      
+      if (!category) {
+        const result = await categorizeBank(bank.name, bank.questions);
+        category = result.category;
+        tags = result.tags;
+      }
+
       const updatedBank: QuestionBank = {
         ...bank,
         timeLimit,
         negativeMarking,
         createdBy,
         isPublic: true,
-        category,
-        tags,
+        category: category || 'General',
+        tags: tags || [],
         author: authorName,
         authorImage: authorImage.trim() || undefined,
         attempts: 0,
         rating: 5.0
       };
       
-      // Save locally
-      await saveBank(updatedBank);
-      setBank(updatedBank);
+      // Parallelize local save and cloud share
+      const [shareId] = await Promise.all([
+        shareBank(updatedBank),
+        saveBank(updatedBank)
+      ]);
       
-      // Share to Firebase
-      const shareId = await shareBank(updatedBank);
+      setBank(updatedBank);
       const url = `${window.location.origin}/explore?test=${updatedBank.bankId}`;
       setShareUrl(url);
       setShowShareModal(false);

@@ -45,23 +45,32 @@ export default function Dashboard() {
     if (!sharingBank || !authorName.trim() || !hasConsent) return;
     setIsCategorizing(true);
     try {
-      const { category, tags } = await categorizeBank(sharingBank.name, sharingBank.questions);
+      // Only categorize if not already categorized
+      let category = sharingBank.category;
+      let tags = sharingBank.tags;
+      
+      if (!category) {
+        const result = await categorizeBank(sharingBank.name, sharingBank.questions);
+        category = result.category;
+        tags = result.tags;
+      }
+
       const updatedBank: QuestionBank = {
         ...sharingBank,
         isPublic: true,
-        category,
-        tags,
+        category: category || 'General',
+        tags: tags || [],
         author: authorName,
         authorImage: authorImage.trim() || undefined,
         attempts: 0,
         rating: 5.0
       };
       
-      // Save locally
-      await saveBank(updatedBank);
-      
-      // Share to Firebase for global access
-      await shareBank(updatedBank);
+      // Parallelize local save and cloud share
+      await Promise.all([
+        saveBank(updatedBank),
+        shareBank(updatedBank)
+      ]);
       
       setSharingBank(null);
       setAuthorName('');
