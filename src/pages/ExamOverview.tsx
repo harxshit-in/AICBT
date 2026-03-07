@@ -83,9 +83,15 @@ export default function ExamOverview() {
       let tags = bank.tags;
       
       if (!category) {
-        const result = await categorizeBank(bank.name, bank.questions);
-        category = result.category;
-        tags = result.tags;
+        try {
+          const result = await categorizeBank(bank.name, bank.questions);
+          category = result.category;
+          tags = result.tags;
+        } catch (catErr) {
+          console.warn("Categorization failed, using defaults", catErr);
+          category = 'General';
+          tags = [];
+        }
       }
 
       const updatedBank: QuestionBank = {

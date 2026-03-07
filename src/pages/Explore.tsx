@@ -20,35 +20,6 @@ interface SharedTest {
   timeLimit?: number;
 }
 
-const MOCK_SHARED_TESTS: SharedTest[] = [
-  {
-    id: 'shared-1',
-    name: 'UPSC Civil Services Prelims 2024 - GS Paper 1',
-    author: 'Admin',
-    questionsCount: 100,
-    attempts: 1240,
-    rating: 4.8,
-    category: 'Civil Services',
-    createdAt: Date.now() - 86400000 * 2,
-    tags: ['Polity', 'History', 'Geography'],
-    negativeMarking: 0.33,
-    timeLimit: 120
-  },
-  {
-    id: 'shared-2',
-    name: 'SSC CGL Tier 1 - Quantitative Aptitude',
-    author: 'Harshit Singh',
-    questionsCount: 25,
-    attempts: 850,
-    rating: 4.5,
-    category: 'SSC',
-    createdAt: Date.now() - 86400000 * 5,
-    tags: ['Math', 'Algebra', 'Geometry'],
-    negativeMarking: 0.5,
-    timeLimit: 60
-  }
-];
-
 export default function Explore() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -60,6 +31,7 @@ export default function Explore() {
   const [showLeaderboard, setShowLeaderboard] = useState<string | null>(null);
   const [isFetchingLeaderboard, setIsFetchingLeaderboard] = useState(false);
   const [showOverview, setShowOverview] = useState<SharedTest | null>(null);
+  const [isStartingTest, setIsStartingTest] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,25 +47,6 @@ export default function Explore() {
 
   const loadPublicBanks = async () => {
     setLoading(true);
-    
-    // Fetch from local storage
-    const allBanks = await getAllBanks();
-    const localPublicOnes = allBanks
-      .filter(b => b.isPublic)
-      .map(b => ({
-        id: b.bankId,
-        name: b.name,
-        author: b.author || 'Anonymous',
-        questionsCount: b.questions.length,
-        attempts: b.attempts || 0,
-        rating: b.rating || 5.0,
-        category: b.category || 'General',
-        createdAt: b.createdAt,
-        tags: b.tags,
-        negativeMarking: b.negativeMarking,
-        timeLimit: b.timeLimit,
-        authorImage: b.authorImage
-      }));
     
     // Fetch from Firebase
     let firebasePublicOnes: SharedTest[] = [];
@@ -117,16 +70,15 @@ export default function Explore() {
       console.error("Failed to fetch from Firebase:", err);
     }
     
-    // Merge and remove duplicates by ID
-    const merged = [...MOCK_SHARED_TESTS, ...localPublicOnes, ...firebasePublicOnes];
-    const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+    // Remove duplicates by ID
+    const unique = Array.from(new Map(firebasePublicOnes.map(item => [item.id, item])).values());
     
     setPublicBanks(unique);
     setLoading(false);
     return unique;
   };
 
-  const categories = ['All', ...new Set([...MOCK_SHARED_TESTS, ...publicBanks].map(t => t.category))];
+  const categories = ['All', ...new Set(publicBanks.map(t => t.category))];
 
   const filteredTests = publicBanks.filter(test => {
     const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -139,22 +91,17 @@ export default function Explore() {
   const handleStartTest = async (testId: string) => {
     if (!userName.trim()) return;
     localStorage.setItem('candidate_name', userName);
-    
-    // Check if it's a mock test
-    if (testId.startsWith('shared-')) {
-      navigate(`/shared/${testId}`);
-      return;
-    }
+    setIsStartingTest(true);
 
     // Check if it's in local storage
     const localBank = await getAllBanks().then(banks => banks.find(b => b.bankId === testId));
     
     if (localBank) {
       navigate(`/exam/${testId}`);
+      setIsStartingTest(false);
     } else {
       // It must be from Firebase, fetch it and save locally first
       try {
-        setLoading(true);
         const fbBank = await getSharedBank(testId);
         if (fbBank) {
           await saveBank(fbBank);
@@ -166,7 +113,7 @@ export default function Explore() {
         console.error(err);
         alert("Failed to load test from cloud.");
       } finally {
-        setLoading(false);
+        setIsStartingTest(false);
       }
     }
   };
@@ -298,15 +245,13 @@ export default function Explore() {
                     >
                       <Globe className="w-4 h-4" />
                     </button>
-                    {!test.id.startsWith('shared-') && (
-                      <button 
-                        onClick={(e) => openLeaderboard(test.id, e)}
-                        className="p-2 bg-slate-50 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
-                        title="View Leaderboard"
-                      >
-                        <Medal className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button 
+                      onClick={(e) => openLeaderboard(test.id, e)}
+                      className="p-2 bg-slate-50 text-slate-400 hover:text-orange-500 hover:bg-orange-50 rounded-xl transition-all"
+                      title="View Leaderboard"
+                    >
+                      <Medal className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -530,12 +475,18 @@ export default function Explore() {
                     Cancel
                   </button>
                   <button
-                    disabled={!userName.trim()}
+                    disabled={!userName.trim() || isStartingTest}
                     onClick={() => handleStartTest(showNameModal)}
                     className="flex-[2] bg-orange-500 text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
-                    Start Exam
-                    <ChevronRight className="w-5 h-5" />
+                    {isStartingTest ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        Start Exam
+                        <ChevronRight className="w-5 h-5" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

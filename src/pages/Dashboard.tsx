@@ -50,9 +50,15 @@ export default function Dashboard() {
       let tags = sharingBank.tags;
       
       if (!category) {
-        const result = await categorizeBank(sharingBank.name, sharingBank.questions);
-        category = result.category;
-        tags = result.tags;
+        try {
+          const result = await categorizeBank(sharingBank.name, sharingBank.questions);
+          category = result.category;
+          tags = result.tags;
+        } catch (catErr) {
+          console.warn("Categorization failed, using defaults", catErr);
+          category = 'General';
+          tags = [];
+        }
       }
 
       const updatedBank: QuestionBank = {
