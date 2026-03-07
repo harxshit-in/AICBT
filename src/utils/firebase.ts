@@ -15,11 +15,16 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export async function shareBank(bank: QuestionBank): Promise<string> {
-  const docRef = await addDoc(collection(db, "shared_tests"), {
+  const dataToSave = {
     ...bank,
     sharedAt: Date.now(),
     isPublic: true // Ensure it's marked as public in Firestore
-  });
+  };
+
+  // Remove undefined values recursively as Firestore doesn't support them
+  const sanitizedData = JSON.parse(JSON.stringify(dataToSave));
+
+  const docRef = await addDoc(collection(db, "shared_tests"), sanitizedData);
   return docRef.id;
 }
 
