@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getBank, saveBank, QuestionBank } from '../utils/storage';
 import { shareBank } from '../utils/firebase';
+import { categorizeBank } from '../utils/aiExtractor';
 import { 
   ChevronLeft, 
   Clock, 
@@ -12,8 +13,13 @@ import {
   AlertTriangle,
   FileText,
   Copy,
-  Check
+  Check,
+  Globe,
+  ShieldAlert,
+  Loader2,
+  X
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function ExamOverview() {
@@ -26,6 +32,11 @@ export default function ExamOverview() {
   const [shareUrl, setShareUrl] = useState('');
   const [copying, setCopying] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [authorName, setAuthorName] = useState('');
+  const [authorImage, setAuthorImage] = useState('');
+  const [hasConsent, setHasConsent] = useState(false);
+  const [isCategorizing, setIsCategorizing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -64,23 +75,38 @@ export default function ExamOverview() {
   };
 
   const handleShare = async () => {
-    if (!bank) return;
-    setSharing(true);
+    if (!bank || !authorName.trim() || !hasConsent) return;
+    setIsCategorizing(true);
     try {
-      const updatedBank = {
+      const { category, tags } = await categorizeBank(bank.name, bank.questions);
+      const updatedBank: QuestionBank = {
         ...bank,
         timeLimit,
         negativeMarking,
-        createdBy
+        createdBy,
+        isPublic: true,
+        category,
+        tags,
+        author: authorName,
+        authorImage: authorImage.trim() || undefined,
+        attempts: 0,
+        rating: 5.0
       };
+      
+      // Save locally
+      await saveBank(updatedBank);
+      setBank(updatedBank);
+      
+      // Share to Firebase
       const shareId = await shareBank(updatedBank);
-      const url = `${window.location.origin}/shared/${shareId}`;
+      const url = `${window.location.origin}/explore?test=${updatedBank.bankId}`;
       setShareUrl(url);
+      setShowShareModal(false);
     } catch (err) {
       console.error(err);
-      alert("Failed to share test. Check your Firebase configuration.");
+      alert("Failed to share test. Check your Gemini API key and Firebase configuration.");
     } finally {
-      setSharing(false);
+      setIsCategorizing(false);
     }
   };
 
@@ -175,12 +201,11 @@ export default function ExamOverview() {
                 Download JSON
               </button>
               <button
-                disabled={sharing}
-                onClick={handleShare}
+                onClick={() => setShowShareModal(true)}
                 className="flex items-center gap-2 bg-purple-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-purple-100 hover:bg-purple-600 transition-all active:scale-95 disabled:opacity-50"
               >
-                {sharing ? <Clock className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
-                Share Test
+                <Share2 className="w-5 h-5" />
+                Share Publicly
               </button>
             </div>
 
@@ -242,6 +267,114 @@ export default function ExamOverview() {
           </div>
         </div>
       </div>
+
+      {/* Share Confirmation Modal */}
+      <AnimatePresence>
+        {showShareModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl relative overflow-hidden"
+            >
+              <button 
+                onClick={() => setShowShareModal(false)}
+                className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-4 mb-8">
+                <div className="bg-orange-50 w-20 h-20 rounded-[2rem] flex items-center justify-center text-orange-500 mx-auto mb-6">
+                  <ShieldAlert className="w-10 h-10" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Public Sharing</h2>
+                <p className="text-slate-500 text-sm">
+                  This test will be available on the **Explore** page for everyone to attempt. 
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Author / Institution Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Harshit Academy"
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-bold"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Profile Photo URL (Optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={authorImage}
+                    onChange={(e) => setAuthorImage(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-bold"
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative flex items-center mt-1">
+                    <input
+                      type="checkbox"
+                      checked={hasConsent}
+                      onChange={(e) => setHasConsent(e.target.checked)}
+                      className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-200 transition-all checked:bg-orange-500 checked:border-orange-500"
+                    />
+                    <svg
+                      className="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium leading-relaxed group-hover:text-slate-700 transition-colors">
+                    I agree to share this test publicly and accept the <Link to="/about" className="text-orange-500 font-bold hover:underline">Terms of Service</Link>.
+                  </span>
+                </label>
+
+                <div className="space-y-3 pt-2">
+                  <button
+                    disabled={isCategorizing || !authorName.trim() || !hasConsent}
+                    onClick={handleShare}
+                    className="w-full bg-orange-500 text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {isCategorizing ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        AI Categorizing...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-5 h-5" />
+                        Confirm & Share
+                      </>
+                    )}
+                  </button>
+                  <button
+                    disabled={isCategorizing}
+                    onClick={() => setShowShareModal(false)}
+                    className="w-full px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

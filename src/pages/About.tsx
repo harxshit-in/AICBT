@@ -182,30 +182,39 @@ export default function About() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-white p-12 rounded-[3.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 text-center space-y-8"
+        className="bg-slate-900 p-12 rounded-[3.5rem] border border-slate-800 shadow-2xl shadow-slate-900/50 text-center space-y-8 relative overflow-hidden"
       >
-        <div className="space-y-3">
-          <h2 className="text-3xl font-black text-slate-900">Developer Information</h2>
-          <p className="text-slate-500 font-medium">Crafted with ❤️ for students worldwide by Harshit Singh.</p>
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500" />
+        <div className="absolute -right-20 -top-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl" />
+        
+        <div className="space-y-3 relative z-10">
+          <div className="bg-orange-500/10 text-orange-500 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest inline-block mb-4 border border-orange-500/20">
+            Featured Developer
+          </div>
+          <h2 className="text-4xl font-black text-white">Harshit Singh</h2>
+          <p className="text-slate-400 font-medium text-lg max-w-xl mx-auto">
+            Crafting the future of digital education. Dedicated to building tools that empower students and educators worldwide.
+          </p>
         </div>
         
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-6 relative z-10">
           <div className="flex flex-wrap justify-center gap-4">
             <a 
               href="https://harxshit.in" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95"
+              className="flex items-center gap-3 bg-white text-slate-900 px-8 py-4 rounded-2xl font-black hover:bg-slate-100 transition-all shadow-xl shadow-white/5 active:scale-95"
             >
               <Globe className="w-5 h-5 text-orange-500" />
-              harxshit.in
+              Visit Portfolio
             </a>
             <a 
               href="mailto:victus.harshit1609@gmail.com" 
-              className="flex items-center gap-3 bg-white border-2 border-slate-100 px-8 py-4 rounded-2xl font-black text-slate-700 hover:bg-slate-50 transition-all active:scale-95"
+              className="flex items-center gap-3 bg-slate-800 border border-slate-700 px-8 py-4 rounded-2xl font-black text-white hover:bg-slate-700 transition-all active:scale-95"
             >
               <Mail className="w-5 h-5 text-orange-500" />
-              Contact Developer
+              Get in Touch
             </a>
           </div>
         </div>

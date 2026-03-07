@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Play, Calendar, FileText, ChevronRight, Search, Share2, Globe, ShieldAlert, Loader2, X } from 'lucide-react';
 import { getAllBanks, deleteBank, QuestionBank, saveBank } from '../utils/storage';
 import { categorizeBank } from '../utils/aiExtractor';
+import { shareBank } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Dashboard() {
@@ -55,7 +56,13 @@ export default function Dashboard() {
         attempts: 0,
         rating: 5.0
       };
+      
+      // Save locally
       await saveBank(updatedBank);
+      
+      // Share to Firebase for global access
+      await shareBank(updatedBank);
+      
       setSharingBank(null);
       setAuthorName('');
       setAuthorImage('');

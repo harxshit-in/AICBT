@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDoc, doc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDoc, doc, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { QuestionBank } from "./storage";
 
 const firebaseConfig = {
@@ -17,7 +17,8 @@ const db = getFirestore(app);
 export async function shareBank(bank: QuestionBank): Promise<string> {
   const docRef = await addDoc(collection(db, "shared_tests"), {
     ...bank,
-    sharedAt: Date.now()
+    sharedAt: Date.now(),
+    isPublic: true // Ensure it's marked as public in Firestore
   });
   return docRef.id;
 }
@@ -29,4 +30,13 @@ export async function getSharedBank(id: string): Promise<QuestionBank | null> {
     return docSnap.data() as QuestionBank;
   }
   return null;
+}
+
+export async function getPublicBanks(): Promise<QuestionBank[]> {
+  const q = query(collection(db, "shared_tests"), orderBy("sharedAt", "desc"), limit(50));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    ...doc.data(),
+    bankId: doc.id // Use Firestore ID as bankId for shared tests
+  } as QuestionBank));
 }

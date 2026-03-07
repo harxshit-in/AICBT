@@ -1,10 +1,16 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import PDFUploader from '../components/PDFUploader';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info, Key, Settings } from 'lucide-react';
 
 export default function Upload() {
   const navigate = useNavigate();
+  const [hasApiKey, setHasApiKey] = useState(true);
+
+  useEffect(() => {
+    const apiKey = localStorage.getItem('user_gemini_api_key');
+    setHasApiKey(!!apiKey);
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -21,7 +27,29 @@ export default function Upload() {
         <p className="text-slate-500">Convert your PDF exam paper into an interactive online test</p>
       </div>
 
-      <PDFUploader onComplete={() => navigate('/')} />
+      {!hasApiKey ? (
+        <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-10 text-center space-y-6">
+          <div className="bg-red-100 w-20 h-20 rounded-3xl flex items-center justify-center text-red-600 mx-auto">
+            <Key className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-red-900">API Key Required</h2>
+            <p className="text-red-700 font-medium max-w-md mx-auto">
+              To extract questions from your PDF, you need to provide a Gemini API Key. 
+              This ensures your data stays private and the service remains free.
+            </p>
+          </div>
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95"
+          >
+            <Settings className="w-5 h-5" />
+            Go to Settings to add API Key
+          </Link>
+        </div>
+      ) : (
+        <PDFUploader onComplete={() => navigate('/')} />
+      )}
 
       <div className="bg-orange-50 rounded-3xl p-6 border border-orange-100 flex gap-4">
         <div className="bg-orange-100 p-2 rounded-xl h-fit">

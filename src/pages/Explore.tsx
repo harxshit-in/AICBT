@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Globe, Users, Play, Calendar, FileText, ChevronRight, Star, TrendingUp, Loader2, Medal, Target, Zap, X, Timer, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { getAllBanks, QuestionBank, getResultsForBank, ExamResult } from '../utils/storage';
+import { getAllBanks, QuestionBank, getResultsForBank, ExamResult, saveBank } from '../utils/storage';
+import { getPublicBanks, getSharedBank } from '../utils/firebase';
 
 interface SharedTest {
   id: string;
@@ -74,8 +75,10 @@ export default function Explore() {
 
   const loadPublicBanks = async () => {
     setLoading(true);
+    
+    // Fetch from local storage
     const allBanks = await getAllBanks();
-    const publicOnes = allBanks
+    const localPublicOnes = allBanks
       .filter(b => b.isPublic)
       .map(b => ({
         id: b.bankId,
@@ -92,10 +95,35 @@ export default function Explore() {
         authorImage: b.authorImage
       }));
     
-    const all = [...MOCK_SHARED_TESTS, ...publicOnes];
-    setPublicBanks(all);
+    // Fetch from Firebase
+    let firebasePublicOnes: SharedTest[] = [];
+    try {
+      const fbBanks = await getPublicBanks();
+      firebasePublicOnes = fbBanks.map(b => ({
+        id: b.bankId,
+        name: b.name,
+        author: b.author || 'Anonymous',
+        questionsCount: b.questions.length,
+        attempts: b.attempts || 0,
+        rating: b.rating || 5.0,
+        category: b.category || 'General',
+        createdAt: b.createdAt,
+        tags: b.tags,
+        negativeMarking: b.negativeMarking,
+        timeLimit: b.timeLimit,
+        authorImage: b.authorImage
+      }));
+    } catch (err) {
+      console.error("Failed to fetch from Firebase:", err);
+    }
+    
+    // Merge and remove duplicates by ID
+    const merged = [...MOCK_SHARED_TESTS, ...localPublicOnes, ...firebasePublicOnes];
+    const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
+    
+    setPublicBanks(unique);
     setLoading(false);
-    return all;
+    return unique;
   };
 
   const categories = ['All', ...new Set([...MOCK_SHARED_TESTS, ...publicBanks].map(t => t.category))];
@@ -108,16 +136,38 @@ export default function Explore() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleStartTest = (testId: string) => {
+  const handleStartTest = async (testId: string) => {
     if (!userName.trim()) return;
     localStorage.setItem('candidate_name', userName);
     
-    // Check if it's a real bank or mock
-    const isReal = !testId.startsWith('shared-');
-    if (isReal) {
+    // Check if it's a mock test
+    if (testId.startsWith('shared-')) {
+      navigate(`/shared/${testId}`);
+      return;
+    }
+
+    // Check if it's in local storage
+    const localBank = await getAllBanks().then(banks => banks.find(b => b.bankId === testId));
+    
+    if (localBank) {
       navigate(`/exam/${testId}`);
     } else {
-      navigate(`/shared/${testId}`);
+      // It must be from Firebase, fetch it and save locally first
+      try {
+        setLoading(true);
+        const fbBank = await getSharedBank(testId);
+        if (fbBank) {
+          await saveBank(fbBank);
+          navigate(`/exam/${testId}`);
+        } else {
+          alert("Test not found or has been removed.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load test from cloud.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
