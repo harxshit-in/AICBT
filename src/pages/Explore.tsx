@@ -4,6 +4,7 @@ import { Search, Globe, Users, Play, Calendar, FileText, ChevronRight, Star, Tre
 import { motion, AnimatePresence } from 'motion/react';
 import { getAllBanks, QuestionBank, getResultsForBank, ExamResult, saveBank } from '../utils/storage';
 import { getPublicBanks, getSharedBank } from '../utils/firebase';
+import { isProfane } from '../utils/profanityFilter';
 
 interface SharedTest {
   id: string;
@@ -90,6 +91,12 @@ export default function Explore() {
 
   const handleStartTest = async (testId: string | null) => {
     if (!userName.trim() || !testId) return;
+    
+    if (isProfane(userName)) {
+      alert("Please enter an appropriate name.");
+      return;
+    }
+
     localStorage.setItem('candidate_name', userName);
     setIsStartingTest(true);
 

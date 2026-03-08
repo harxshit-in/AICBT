@@ -2,6 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +13,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Basic security middleware
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disabled for Vite HMR and inline scripts
+    crossOriginEmbedderPolicy: false,
+  }));
+  app.use(cors());
+  app.use(express.json({ limit: '50mb' })); // Limit payload size to prevent DOS
+
+  // Rate limiting to prevent abuse
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000, // Limit each IP to 1000 requests per windowMs
+    message: "Too many requests from this IP, please try again later."
+  });
+  app.use('/api/', limiter);
 
   // API routes
   app.get("/api/health", (req, res) => {

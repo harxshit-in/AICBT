@@ -210,7 +210,7 @@ export default function About() {
               Visit Portfolio
             </a>
             <a 
-              href="mailto:victus.harshit1609@gmail.com" 
+              href="mailto:support@harxshit.in" 
               className="flex items-center gap-3 bg-slate-800 border border-slate-700 px-8 py-4 rounded-2xl font-black text-white hover:bg-slate-700 transition-all active:scale-95"
             >
               <Mail className="w-5 h-5 text-orange-500" />

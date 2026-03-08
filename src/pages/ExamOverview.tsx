@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import Filter from 'bad-words';
+import { isContentSafe } from '../utils/profanityFilter';
 
 export default function ExamOverview() {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +78,12 @@ export default function ExamOverview() {
 
   const handleShare = async () => {
     if (!bank || !authorName.trim() || !hasConsent) return;
+    
+    if (!isContentSafe(bank, authorName)) {
+      alert("Inappropriate content detected in name, test title, or questions. Please use appropriate language.");
+      return;
+    }
+
     setIsCategorizing(true);
     try {
       // Only categorize if not already categorized

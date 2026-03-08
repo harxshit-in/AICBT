@@ -5,6 +5,8 @@ import { getAllBanks, deleteBank, QuestionBank, saveBank } from '../utils/storag
 import { categorizeBank } from '../utils/aiExtractor';
 import { shareBank } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import Filter from 'bad-words';
+import { isContentSafe } from '../utils/profanityFilter';
 
 export default function Dashboard() {
   const [banks, setBanks] = useState<QuestionBank[]>([]);
@@ -43,6 +45,12 @@ export default function Dashboard() {
 
   const confirmShare = async () => {
     if (!sharingBank || !authorName.trim() || !hasConsent) return;
+    
+    if (!isContentSafe(sharingBank, authorName)) {
+      alert("Inappropriate content detected in name, test title, or questions. Please use appropriate language.");
+      return;
+    }
+
     setIsCategorizing(true);
     try {
       // Only categorize if not already categorized

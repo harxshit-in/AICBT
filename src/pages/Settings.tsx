@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader2 } from 'lucide-react';
+import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader2, Download } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
+import { usePWA } from '../context/PWAContext';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'testing' | 'valid' | 'invalid'>('idle');
   const [error, setError] = useState('');
+  const { isInstallable, installApp } = usePWA();
 
   useEffect(() => {
     const saved = localStorage.getItem('user_gemini_api_key');
@@ -148,6 +150,31 @@ export default function Settings() {
               <div className="bg-white/50 p-4 rounded-2xl text-xs text-orange-700 italic">
                 Note: The free tier allows up to 1500 requests per day, which is more than enough for personal exam preparation.
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+            <div className="flex items-center gap-3 text-slate-800 font-bold mb-2">
+              <Download className="w-5 h-5 text-orange-500" />
+              Install Application
+            </div>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">
+                Install AI CBT on your device for a better, full-screen experience and offline access to your saved tests.
+              </p>
+              {isInstallable ? (
+                <button
+                  onClick={installApp}
+                  className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" />
+                  Install App Now
+                </button>
+              ) : (
+                <div className="bg-slate-50 p-4 rounded-2xl text-sm text-slate-500 text-center font-medium border border-slate-100">
+                  App is already installed or your browser doesn't support installation.
+                </div>
+              )}
             </div>
           </div>
         </div>

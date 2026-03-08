@@ -1,26 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X } from 'lucide-react';
+import { usePWA } from '../context/PWAContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { isInstallable, installApp } = usePWA();
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
+    // Check if we should show the install prompt
+    const hasSeenPrompt = localStorage.getItem('has_seen_install_prompt');
+    if (isInstallable && !hasSeenPrompt) {
+      // Small delay so it doesn't pop up instantly
+      const timer = setTimeout(() => {
+        setShowInstallPrompt(true);
+      }, 3000);
+      return () => clearTimeout(timer);
     }
+  }, [isInstallable]);
+
+  const dismissPrompt = () => {
+    setShowInstallPrompt(false);
+    localStorage.setItem('has_seen_install_prompt', 'true');
+  };
+
+  const handleInstall = () => {
+    installApp();
+    dismissPrompt();
   };
 
   const navItems = [
@@ -67,9 +75,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="md:hidden flex items-center gap-3">
-            {deferredPrompt && (
+            {isInstallable && (
               <button 
-                onClick={handleInstallClick}
+                onClick={installApp}
                 className="bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
               >
                 <Download className="w-3 h-3" />
@@ -102,6 +110,52 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </div>
+
+      {/* First-time Install Prompt */}
+      <AnimatePresence>
+        {showInstallPrompt && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, y: 100, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 100, scale: 0.9 }}
+              className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-sm w-full shadow-2xl relative overflow-hidden"
+            >
+              <button 
+                onClick={dismissPrompt}
+                className="absolute top-4 right-4 p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-500 mb-2">
+                  <Download className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Install AI CBT</h3>
+                <p className="text-sm text-slate-500">
+                  Add this app to your home screen for a faster, full-screen experience and offline access!
+                </p>
+                <div className="w-full space-y-3 pt-4">
+                  <button
+                    onClick={handleInstall}
+                    className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    Install Now
+                  </button>
+                  <button
+                    onClick={dismissPrompt}
+                    className="w-full py-3.5 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
