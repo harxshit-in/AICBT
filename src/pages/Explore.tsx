@@ -88,8 +88,8 @@ export default function Explore() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleStartTest = async (testId: string) => {
-    if (!userName.trim()) return;
+  const handleStartTest = async (testId: string | null) => {
+    if (!userName.trim() || !testId) return;
     localStorage.setItem('candidate_name', userName);
     setIsStartingTest(true);
 

@@ -32,7 +32,10 @@ export async function getSharedBank(id: string): Promise<QuestionBank | null> {
   const docRef = doc(db, "shared_tests", id);
   const docSnap = await getDoc(docRef);
   if (docSnap.exists()) {
-    return docSnap.data() as QuestionBank;
+    return {
+      ...docSnap.data(),
+      bankId: docSnap.id
+    } as QuestionBank;
   }
   return null;
 }
