@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isInstallable, installApp } = usePWA();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showParikshAIPrompt, setShowParikshAIPrompt] = useState(false);
+  const [isParikshAIMode, setIsParikshAIMode] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState(false);
 
   useEffect(() => {
     // Check if we should show the install prompt
@@ -21,6 +25,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [isInstallable]);
 
+  useEffect(() => {
+    // Show ParikshAI prompt on load if not already in ParikshAI mode
+    const hasSeenParikshAIPrompt = sessionStorage.getItem('has_seen_parikshai_prompt');
+    if (!hasSeenParikshAIPrompt && location.pathname !== '/parikshai') {
+      setShowParikshAIPrompt(true);
+    }
+  }, [location.pathname]);
+
+  const handleTryParikshAI = () => {
+    const apiKey = localStorage.getItem('user_gemini_api_key');
+    if (!apiKey) {
+      setApiKeyError(true);
+      return;
+    }
+    
+    setApiKeyError(false);
+    setShowParikshAIPrompt(false);
+    setIsParikshAIMode(true);
+    sessionStorage.setItem('has_seen_parikshai_prompt', 'true');
+    navigate('/parikshai');
+  };
+
+  const dismissParikshAIPrompt = () => {
+    setShowParikshAIPrompt(false);
+    sessionStorage.setItem('has_seen_parikshai_prompt', 'true');
+  };
+
   const dismissPrompt = () => {
     setShowInstallPrompt(false);
     localStorage.setItem('has_seen_install_prompt', 'true');
@@ -33,6 +64,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { name: 'Explore', path: '/explore', icon: Globe },
+    { name: 'ParikshAI', path: '/parikshai', icon: Brain },
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Upload PDF', path: '/upload', icon: FileUp },
     { name: 'OMR Scan', path: '/omr', icon: ScanLine },
@@ -42,7 +74,79 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-100 px-4 py-3">
+      <AnimatePresence>
+        {showParikshAIPrompt && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+            >
+              <button 
+                onClick={dismissParikshAIPrompt}
+                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+              
+              <div className="relative z-10 space-y-6">
+                <div className="bg-orange-500 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                  <Brain className="w-8 h-8 text-white" />
+                </div>
+                
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Try Pariksh<span className="text-orange-500">AI</span> Mode</h2>
+                  <p className="text-slate-500 font-medium">Experience the full power of AI-driven exam analysis. Upload past papers, get trend reports, and generate study strategies instantly.</p>
+                </div>
+
+                {apiKeyError && (
+                  <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold flex items-start gap-3 border border-red-100">
+                    <Key className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                      <p>API Key required for ParikshAI.</p>
+                      <button 
+                        onClick={() => {
+                          setShowParikshAIPrompt(false);
+                          navigate('/settings');
+                        }}
+                        className="underline mt-1 hover:text-red-700"
+                      >
+                        Go to Settings to set it up
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleTryParikshAI}
+                  className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-slate-900/20"
+                >
+                  Enter ParikshAI Mode
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                
+                <button 
+                  onClick={dismissParikshAIPrompt}
+                  className="w-full text-slate-500 font-bold py-3 hover:text-slate-800 transition-colors"
+                >
+                  Continue to standard app
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!isParikshAIMode && (
+        <nav className="sticky top-0 z-50 bg-white border-b border-slate-100 px-4 py-3 print:hidden">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="bg-orange-500 p-2 rounded-xl group-hover:scale-110 transition-transform">
@@ -87,13 +191,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </nav>
+      )}
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className={`max-w-7xl mx-auto px-4 ${isParikshAIMode ? 'py-4' : 'py-8'}`}>
+        {isParikshAIMode && (
+          <div className="mb-6 flex justify-between items-center print:hidden">
+            <button 
+              onClick={() => setIsParikshAIMode(false)}
+              className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Exit ParikshAI Mode
+            </button>
+          </div>
+        )}
         {children}
       </main>
 
       {/* Bottom Nav for Mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex items-center justify-around py-4 px-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      {!isParikshAIMode && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex items-center justify-around py-4 px-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] print:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -110,6 +227,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           );
         })}
       </div>
+      )}
 
       {/* First-time Install Prompt */}
       <AnimatePresence>

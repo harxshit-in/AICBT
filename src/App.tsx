@@ -10,6 +10,7 @@ import Settings from './pages/Settings';
 import SharedTest from './pages/SharedTest';
 import About from './pages/About';
 import Explore from './pages/Explore';
+import ParikshAI from './pages/ParikshAI';
 import { PWAProvider } from './context/PWAContext';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/parikshai" element={<ParikshAI />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/exam-overview/:id" element={<ExamOverview />} />
             <Route path="/exam/:id" element={<Exam />} />
