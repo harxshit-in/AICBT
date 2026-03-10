@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap } from 'lucide-react';
+import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap, Globe } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { generateBankId, saveBank, QuestionBank } from '../utils/storage';
+import { shareBank, logAnalyticsEvent } from '../utils/firebase';
 
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -22,16 +24,19 @@ interface StructuredQuestion {
 
 interface ExamAnalysis {
   chapterImportance: { chapter: string; score: number }[];
-  predictedTopics: { chapter: string; probability: number }[];
+  predictedTopics: { chapter: string; probability: number; reason: string }[];
   topicFrequency: { chapter: string; total: number; percentage: number; trend: 'Increasing' | 'Stable' | 'Decreasing' }[];
   difficultyTrend: { year: number; easy: number; medium: number; hard: number }[];
   studyStrategy: {
     priorityChapters: string[];
     timeAllocation: { chapter: string; percentage: number }[];
-    weeklyPlan: { week: number; chapters: string[] }[];
+    weeklyPlan: { week: number; chapters: string[]; focus: string }[];
+    examDayTips: string[];
   };
+  keyConcepts: { chapter: string; concepts: string[] }[];
+  commonPitfalls: { chapter: string; pitfall: string; solution: string }[];
   mostRepeatedQuestions: { chapter: string; questions: string[] }[];
-  practiceQuestions: { chapter: string; question: string; options: string[]; answer: string }[];
+  practiceQuestions: { chapter: string; question: string; options: string[]; answer: string; explanation: string }[];
 }
 
 interface ExamPaper {
@@ -79,6 +84,8 @@ export default function ParikshAI() {
 
   const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
+
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
 
   const toggleSubject = (subject: string) => {
     setExpandedSubjects(prev => ({ ...prev, [subject]: !prev[subject] }));
@@ -209,7 +216,13 @@ export default function ParikshAI() {
         }
       });
 
-      const extractedQuestions: StructuredQuestion[] = JSON.parse(response.text || '[]');
+      let extractedQuestions: StructuredQuestion[] = [];
+      try {
+        extractedQuestions = JSON.parse(response.text || '[]');
+      } catch (parseError) {
+        console.error("JSON Parse Error. Raw response:", response.text);
+        throw new Error("The AI generated a response that was too long and got cut off. Please try uploading a shorter PDF or fewer pages.");
+      }
       
       const sanitizedQuestions = extractedQuestions.map(q => ({
         ...q,
@@ -244,12 +257,19 @@ export default function ParikshAI() {
     }
   };
 
-  const generateAnalysis = async () => {
+  const handleGenerateClick = () => {
     const exam = exams.find(e => e.id === activeExamId);
     if (!exam || exam.papers.length < 1) {
       alert("Minimum 1 year of papers required for trend analysis.");
       return;
     }
+    setShowPublishConfirm(true);
+  };
+
+  const generateAnalysis = async () => {
+    setShowPublishConfirm(false);
+    const exam = exams.find(e => e.id === activeExamId);
+    if (!exam || exam.papers.length < 1) return;
 
     setIsProcessing(true);
     setProcessingStatus('Generating AI Trend Analysis & Study Strategy...');
@@ -264,9 +284,16 @@ export default function ParikshAI() {
       
       const prompt = `
         You are an expert academic strategist and data analyst.
-        Analyze the following structured question data from past ${exam.subject} exams.
+        Analyze the following structured question data from past exams.
         
         Generate a comprehensive trend analysis, importance ranking, predictions, and study strategy.
+        Make the analysis highly detailed and accurate to help users prepare effectively.
+        Include specific reasons for predictions, focus areas for weekly plans, key concepts to master, common pitfalls to avoid, and detailed explanations for practice questions.
+        
+        CRITICAL INSTRUCTION: You MUST provide data for ALL fields in the JSON schema. Do NOT leave topicFrequency, mostRepeatedQuestions, or practiceQuestions empty.
+        To prevent response truncation, you MUST keep the response concise. 
+        Limit ALL arrays (chapterImportance, predictedTopics, topicFrequency, practiceQuestions, keyConcepts, commonPitfalls, mostRepeatedQuestions) to a MAXIMUM of 3 items each.
+        Limit weeklyPlan to a MAXIMUM of 4 weeks.
         
         Data:
         ${JSON.stringify(allQuestions)}
@@ -291,7 +318,7 @@ export default function ParikshAI() {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
-                  properties: { chapter: { type: Type.STRING }, probability: { type: Type.NUMBER, description: "0-100" } }
+                  properties: { chapter: { type: Type.STRING }, probability: { type: Type.NUMBER, description: "0-100" }, reason: { type: Type.STRING } }
                 }
               },
               topicFrequency: {
@@ -323,8 +350,23 @@ export default function ParikshAI() {
                   },
                   weeklyPlan: {
                     type: Type.ARRAY,
-                    items: { type: Type.OBJECT, properties: { week: { type: Type.INTEGER }, chapters: { type: Type.ARRAY, items: { type: Type.STRING } } } }
-                  }
+                    items: { type: Type.OBJECT, properties: { week: { type: Type.INTEGER }, chapters: { type: Type.ARRAY, items: { type: Type.STRING } }, focus: { type: Type.STRING } } }
+                  },
+                  examDayTips: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+              },
+              keyConcepts: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: { chapter: { type: Type.STRING }, concepts: { type: Type.ARRAY, items: { type: Type.STRING } } }
+                }
+              },
+              commonPitfalls: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: { chapter: { type: Type.STRING }, pitfall: { type: Type.STRING }, solution: { type: Type.STRING } }
                 }
               },
               mostRepeatedQuestions: {
@@ -338,7 +380,7 @@ export default function ParikshAI() {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
-                  properties: { chapter: { type: Type.STRING }, question: { type: Type.STRING }, options: { type: Type.ARRAY, items: { type: Type.STRING } }, answer: { type: Type.STRING } }
+                  properties: { chapter: { type: Type.STRING }, question: { type: Type.STRING }, options: { type: Type.ARRAY, items: { type: Type.STRING } }, answer: { type: Type.STRING }, explanation: { type: Type.STRING } }
                 }
               }
             }
@@ -346,7 +388,13 @@ export default function ParikshAI() {
         }
       });
 
-      const analysis: ExamAnalysis = JSON.parse(response.text || '{}');
+      let analysis: ExamAnalysis;
+      try {
+        analysis = JSON.parse(response.text || '{}');
+      } catch (parseError) {
+        console.error("JSON Parse Error. Raw response:", response.text);
+        throw new Error("The AI generated a response that was too long and got cut off. Please try again with fewer questions or a smaller exam.");
+      }
       
       const updatedExams = exams.map(e => {
         if (e.id === activeExamId) {
@@ -356,6 +404,62 @@ export default function ParikshAI() {
       });
       
       saveExams(updatedExams);
+
+      setProcessingStatus('Publishing test to Explore page...');
+      
+      const mapSubjectToSection = (subject: string): string => {
+        if (!subject) return 'General Studies & Science';
+        const s = subject.toLowerCase();
+        if (s.includes('math') || s.includes('quant') || s.includes('numerical') || s.includes('arithmetic')) return 'Mathematics';
+        if (s.includes('reasoning') || s.includes('intelligence') || s.includes('logic')) return 'Reasoning';
+        if (s.includes('english') || s.includes('verbal') || s.includes('language')) return 'English';
+        return 'General Studies & Science';
+      };
+
+      const testQuestions = allQuestions.map(q => {
+        let correctIdx = 0;
+        const safeOptions = Array.isArray(q.options) && q.options.length > 0 
+          ? q.options.map(o => String(o || '')) 
+          : ["Option A", "Option B", "Option C", "Option D"];
+          
+        if (q.correct_option) {
+          const idx = safeOptions.findIndex(opt => opt.trim().toLowerCase() === String(q.correct_option).trim().toLowerCase());
+          if (idx !== -1) correctIdx = idx;
+        }
+        
+        return {
+          question: String(q.question_text || "Unknown Question"),
+          options: safeOptions,
+          correct: correctIdx,
+          section: mapSubjectToSection(String(q.subject || exam.subject || 'General'))
+        };
+      }).sort((a, b) => a.section.localeCompare(b.section));
+
+      const bankId = generateBankId(exam.name || 'AI Test');
+      const newBank: QuestionBank = {
+        bankId,
+        name: exam.name || 'AI Generated Test',
+        questions: testQuestions,
+        createdAt: Date.now(),
+        sourceFile: 'AI Extracted',
+        timeLimit: testQuestions.length || 60,
+        negativeMarking: 0,
+        author: 'AI CBT',
+        category: exam.subject || 'General',
+        tags: ['AI Generated', exam.name || 'Test'],
+        isPublic: true
+      };
+
+      await saveBank(newBank);
+      try {
+        await shareBank(newBank);
+        await logAnalyticsEvent('ai_analyses');
+        alert("Success! The AI Analysis is complete and the test has been published to the Explore page.");
+      } catch (e: any) {
+        console.error("Failed to share bank publicly", e);
+        alert("Analysis generated, but failed to publish test to Explore page: " + e.message);
+      }
+
     } catch (error: any) {
       console.error(error);
       alert("Error generating analysis: " + error.message);
@@ -608,7 +712,7 @@ export default function ParikshAI() {
                       : `✅ Ready for AI Trend Analysis (${activeExam.papers.length}/10 papers)`}
                   </p>
                   <button 
-                    onClick={generateAnalysis}
+                    onClick={handleGenerateClick}
                     disabled={activeExam.papers.length < 1 || isProcessing}
                     className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 transition-all"
                   >
@@ -655,16 +759,19 @@ export default function ParikshAI() {
                         <Target className="w-5 h-5 text-orange-500" />
                         AI Predicted Topics (Next Exam)
                       </h3>
-                      <div className="space-y-3">
-                        {activeExam.analysis.predictedTopics.slice(0, 5).map((topic, i) => (
-                          <div key={i} className="flex items-center justify-between">
-                            <span className="font-medium text-slate-700">{topic.chapter}</span>
-                            <div className="flex items-center gap-2">
-                              <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-orange-500 rounded-full" style={{ width: `${topic.probability}%` }} />
+                      <div className="space-y-4">
+                        {activeExam.analysis.predictedTopics?.slice(0, 5).map((topic, i) => (
+                          <div key={i} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-slate-700">{topic.chapter}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${topic.probability}%` }} />
+                                </div>
+                                <span className="text-sm font-bold text-slate-900 w-10 text-right">{topic.probability}%</span>
                               </div>
-                              <span className="text-sm font-bold text-slate-900 w-10 text-right">{topic.probability}%</span>
                             </div>
+                            <p className="text-xs text-slate-500 italic pl-2 border-l-2 border-orange-200">{topic.reason}</p>
                           </div>
                         ))}
                       </div>
@@ -676,7 +783,7 @@ export default function ParikshAI() {
                         Chapter Importance Ranking
                       </h3>
                       <div className="space-y-3">
-                        {activeExam.analysis.chapterImportance.slice(0, 5).map((ch, i) => (
+                        {activeExam.analysis.chapterImportance?.slice(0, 5).map((ch, i) => (
                           <div key={i} className="flex items-center gap-3">
                             <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
                               {i + 1}
@@ -698,7 +805,7 @@ export default function ParikshAI() {
                       <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart 
-                            data={[...activeExam.analysis.topicFrequency].sort((a, b) => b.percentage - a.percentage)} 
+                            data={[...(activeExam.analysis.topicFrequency || [])].sort((a, b) => b.percentage - a.percentage)} 
                             layout="vertical" 
                             margin={{ left: 80, right: 20, top: 0, bottom: 0 }}
                           >
@@ -717,7 +824,7 @@ export default function ParikshAI() {
                               contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
                             />
                             <Bar dataKey="percentage" fill="#f97316" radius={[0, 4, 4, 0]}>
-                              {activeExam.analysis.topicFrequency.map((entry, index) => (
+                              {(activeExam.analysis.topicFrequency || []).map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                               ))}
                             </Bar>
@@ -730,7 +837,7 @@ export default function ParikshAI() {
                       <h3 className="text-lg font-black text-slate-800 mb-6">Difficulty Trend</h3>
                       <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={activeExam.analysis.difficultyTrend}>
+                          <LineChart data={activeExam.analysis.difficultyTrend || []}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="year" axisLine={false} tickLine={false} />
                             <YAxis axisLine={false} tickLine={false} />
@@ -756,7 +863,7 @@ export default function ParikshAI() {
                       <div>
                         <h4 className="font-bold text-orange-800 mb-3 uppercase text-xs tracking-widest">Time Allocation</h4>
                         <div className="space-y-2">
-                          {activeExam.analysis.studyStrategy.timeAllocation.map((ta, i) => (
+                          {activeExam.analysis.studyStrategy?.timeAllocation?.map((ta, i) => (
                             <div key={i} className="flex items-center justify-between bg-white p-3 rounded-xl border border-orange-100">
                               <span className="font-medium text-slate-700">{ta.chapter}</span>
                               <span className="font-black text-orange-600">{ta.percentage}%</span>
@@ -768,11 +875,14 @@ export default function ParikshAI() {
                       <div>
                         <h4 className="font-bold text-orange-800 mb-3 uppercase text-xs tracking-widest">Weekly Plan</h4>
                         <div className="space-y-3">
-                          {activeExam.analysis.studyStrategy.weeklyPlan.map((wp, i) => (
+                          {activeExam.analysis.studyStrategy?.weeklyPlan?.map((wp, i) => (
                             <div key={i} className="bg-white p-4 rounded-xl border border-orange-100">
-                              <div className="font-black text-slate-800 mb-2">Week {wp.week}</div>
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="font-black text-slate-800">Week {wp.week}</div>
+                                <div className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md">{wp.focus}</div>
+                              </div>
                               <div className="flex flex-wrap gap-2">
-                                {wp.chapters.map((ch, j) => (
+                                {wp.chapters?.map((ch, j) => (
                                   <span key={j} className="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-xs font-bold">
                                     {ch}
                                   </span>
@@ -781,6 +891,64 @@ export default function ParikshAI() {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    </div>
+                    
+                    {activeExam.analysis.studyStrategy?.examDayTips && activeExam.analysis.studyStrategy.examDayTips.length > 0 && (
+                      <div className="mt-8 pt-6 border-t border-orange-200/50">
+                        <h4 className="font-bold text-orange-800 mb-4 uppercase text-xs tracking-widest flex items-center gap-2">
+                          <Zap className="w-4 h-4" /> Exam Day Strategy
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {activeExam.analysis.studyStrategy.examDayTips.map((tip, i) => (
+                            <div key={i} className="flex items-start gap-3 bg-white/50 p-3 rounded-xl">
+                              <ShieldCheck className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                              <span className="text-sm text-slate-700 font-medium">{tip}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Key Concepts & Pitfalls */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-emerald-500" />
+                        Key Concepts to Master
+                      </h3>
+                      <div className="space-y-6">
+                        {activeExam.analysis.keyConcepts?.slice(0, 4).map((kc, i) => (
+                          <div key={i}>
+                            <h4 className="font-bold text-sm text-slate-900 mb-2 bg-emerald-50 text-emerald-800 inline-block px-2 py-1 rounded-md">
+                              {kc.chapter}
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {kc.concepts?.map((concept, j) => (
+                                <span key={j} className="text-xs font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded-md border border-slate-200">
+                                  {concept}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                      <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
+                        <ShieldCheck className="w-5 h-5 text-red-500" />
+                        Common Pitfalls & Traps
+                      </h3>
+                      <div className="space-y-4">
+                        {activeExam.analysis.commonPitfalls?.slice(0, 4).map((cp, i) => (
+                          <div key={i} className="bg-red-50/50 p-4 rounded-xl border border-red-100">
+                            <h4 className="font-bold text-sm text-red-800 mb-1">{cp.chapter}</h4>
+                            <p className="text-sm text-slate-700 mb-2"><span className="font-semibold text-red-600">Trap:</span> {cp.pitfall}</p>
+                            <p className="text-sm text-slate-700"><span className="font-semibold text-emerald-600">Solution:</span> {cp.solution}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -792,13 +960,13 @@ export default function ParikshAI() {
                       Most Repeated Concepts
                     </h3>
                     <div className="space-y-6">
-                      {activeExam.analysis.mostRepeatedQuestions.map((mrq, i) => (
+                      {activeExam.analysis.mostRepeatedQuestions?.map((mrq, i) => (
                         <div key={i}>
                           <h4 className="font-bold text-slate-900 mb-3 bg-slate-50 inline-block px-3 py-1 rounded-lg">
                             {mrq.chapter}
                           </h4>
                           <ul className="space-y-2 pl-4">
-                            {mrq.questions.map((q, j) => (
+                            {mrq.questions?.map((q, j) => (
                               <li key={j} className="text-slate-600 flex gap-2">
                                 <span className="text-orange-500 font-bold">•</span>
                                 {q}
@@ -817,7 +985,7 @@ export default function ParikshAI() {
                       AI Generated Practice Questions
                     </h3>
                     <div className="space-y-6">
-                      {activeExam.analysis.practiceQuestions.map((pq, i) => (
+                      {activeExam.analysis.practiceQuestions?.map((pq, i) => (
                         <div key={i} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                           <div className="flex items-center justify-between mb-4">
                             <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-lg text-xs font-bold">
@@ -827,14 +995,21 @@ export default function ParikshAI() {
                           </div>
                           <p className="font-medium text-slate-800 mb-4">{pq.question}</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                            {pq.options.map((opt, j) => (
+                            {pq.options?.map((opt, j) => (
                               <div key={j} className="bg-white border border-slate-200 p-3 rounded-xl text-sm text-slate-600">
                                 {opt}
                               </div>
                             ))}
                           </div>
-                          <div className="text-sm font-bold text-emerald-600 bg-emerald-50 inline-block px-3 py-1.5 rounded-lg">
-                            Answer: {pq.answer}
+                          <div className="space-y-2">
+                            <div className="text-sm font-bold text-emerald-600 bg-emerald-50 inline-block px-3 py-1.5 rounded-lg">
+                              Answer: {pq.answer}
+                            </div>
+                            {pq.explanation && (
+                              <div className="text-sm text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
+                                <span className="font-bold text-slate-800">Explanation:</span> {pq.explanation}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -980,6 +1155,47 @@ export default function ParikshAI() {
           )}
         </div>
       </div>
+      {/* Publish Confirm Modal */}
+      <AnimatePresence>
+        {showPublishConfirm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-slate-100"
+            >
+              <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-500 mb-6">
+                <Globe className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 mb-2">Publish to Explore?</h2>
+              <p className="text-slate-500 mb-8 leading-relaxed">
+                This result will be publicly available for everyone in the Explore page. The AI will also convert all questions into a test and upload it publicly with the author name "AI CBT". Do you want to proceed?
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowPublishConfirm(false)}
+                  className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={generateAnalysis}
+                  className="flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-200"
+                >
+                  Proceed
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

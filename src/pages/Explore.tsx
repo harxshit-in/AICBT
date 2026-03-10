@@ -290,7 +290,14 @@ export default function Explore() {
                     {test.author[0]}
                   </div>
                 )}
-                <span className="text-sm font-medium text-slate-500">by <span className="text-slate-900 font-bold">{test.author}</span></span>
+                <span className="text-sm font-medium text-slate-500 flex items-center gap-1">
+                  by <span className="text-slate-900 font-bold">{test.author}</span>
+                  {test.author === 'AI CBT' && (
+                    <span title="Verified AI Generated" className="flex items-center">
+                      <ShieldCheck className="w-4 h-4 text-blue-500 fill-blue-50" />
+                    </span>
+                  )}
+                </span>
               </div>
 
               <div className="flex items-center justify-between pt-6 border-t border-slate-50">

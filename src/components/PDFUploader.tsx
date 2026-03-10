@@ -3,6 +3,7 @@ import { Upload, FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-rea
 import { renderPDFToImages } from '../utils/pdfReader';
 import { extractFromPDF, extractFromImages } from '../utils/aiExtractor';
 import { saveBank, generateBankId } from '../utils/storage';
+import { logAnalyticsEvent } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function PDFUploader({ onComplete }: { onComplete: () => void }) {
@@ -83,6 +84,7 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
       };
 
       await saveBank(bank);
+      await logAnalyticsEvent('pdf_uploads');
       setStatus('success');
       setTimeout(() => onComplete(), 1500);
     } catch (err: any) {

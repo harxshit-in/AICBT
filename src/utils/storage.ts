@@ -22,6 +22,7 @@ export interface Question {
   options: string[];
   correct: number; // 0-3 index
   language?: 'english' | 'hindi';
+  section?: string;
 }
 
 export interface QuestionBank {
@@ -40,6 +41,7 @@ export interface QuestionBank {
   authorImage?: string;
   attempts?: number;
   rating?: number;
+  approved?: boolean;
 }
 
 async function getDb(): Promise<IDBPDatabase> {

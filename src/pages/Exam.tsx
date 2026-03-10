@@ -139,6 +139,8 @@ export default function Exam() {
   const currentQuestion = bank.questions[currentIdx];
   const answeredCount = answers.filter(a => a !== null).length;
   const unattemptedCount = bank.questions.length - answeredCount;
+  const sections = Array.from(new Set(bank.questions.map(q => q.section || 'General')));
+  const currentSection = currentQuestion.section || 'General';
 
   return (
     <div className={`flex flex-col h-screen bg-slate-50 fixed inset-0 z-[100] overflow-hidden`}>
@@ -188,6 +190,31 @@ export default function Exam() {
       <div className="flex flex-1 overflow-hidden">
         {/* Main Question Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Section Tabs */}
+          {sections.length > 1 && (
+            <div className="bg-white border-b border-slate-100 px-4 md:px-8 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+              {sections.map(section => {
+                const isCurrent = section === currentSection;
+                return (
+                  <button
+                    key={section}
+                    onClick={() => {
+                      const firstIdx = bank.questions.findIndex(q => (q.section || 'General') === section);
+                      if (firstIdx !== -1) setCurrentIdx(firstIdx);
+                    }}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                      isCurrent 
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-200' 
+                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {section}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* Question Meta Bar */}
           <div className="bg-white/50 backdrop-blur-sm border-b border-slate-100 px-4 md:px-8 py-2 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3 md:gap-4">
@@ -337,28 +364,41 @@ export default function Exam() {
               </div>
 
               {/* Question Palette */}
-              <div className="space-y-3">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
                     <LayoutGrid className="w-4 h-4 text-orange-500" />
                     Palette
                   </h4>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {bank.questions.map((_, i) => {
-                    let statusClass = 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100';
-                    if (currentIdx === i) statusClass = 'bg-orange-500 text-white border-orange-500 shadow-xl shadow-orange-100 scale-110 z-10';
-                    else if (marked[i]) statusClass = 'bg-yellow-400 text-white border-yellow-400 shadow-sm';
-                    else if (answers[i] !== null) statusClass = 'bg-emerald-500 text-white border-emerald-500 shadow-sm';
-
+                <div className="space-y-6">
+                  {sections.map(section => {
+                    const sectionQuestions = bank.questions.map((q, i) => ({ q, i })).filter(item => (item.q.section || 'General') === section);
+                    if (sectionQuestions.length === 0) return null;
                     return (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentIdx(i)}
-                        className={`w-full aspect-square rounded-xl text-[10px] font-black transition-all border-2 ${statusClass}`}
-                      >
-                        {i + 1}
-                      </button>
+                      <div key={section} className="space-y-3">
+                        {sections.length > 1 && (
+                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{section}</h5>
+                        )}
+                        <div className="grid grid-cols-5 gap-2">
+                          {sectionQuestions.map(({ i }) => {
+                            let statusClass = 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-slate-100';
+                            if (currentIdx === i) statusClass = 'bg-orange-500 text-white border-orange-500 shadow-xl shadow-orange-100 scale-110 z-10';
+                            else if (marked[i]) statusClass = 'bg-yellow-400 text-white border-yellow-400 shadow-sm';
+                            else if (answers[i] !== null) statusClass = 'bg-emerald-500 text-white border-emerald-500 shadow-sm';
+
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => setCurrentIdx(i)}
+                                className={`w-full aspect-square rounded-xl text-[10px] font-black transition-all border-2 ${statusClass}`}
+                              >
+                                {i + 1}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -413,24 +453,37 @@ export default function Exam() {
                 </button>
               </div>
               <div className="p-6 space-y-8 flex-1 overflow-y-auto">
-                <div className="grid grid-cols-5 gap-2">
-                  {bank.questions.map((_, i) => {
-                    let statusClass = 'bg-slate-50 text-slate-400 border-slate-100';
-                    if (currentIdx === i) statusClass = 'bg-orange-500 text-white border-orange-500';
-                    else if (marked[i]) statusClass = 'bg-yellow-400 text-white border-yellow-400';
-                    else if (answers[i] !== null) statusClass = 'bg-emerald-500 text-white border-emerald-500';
-
+                <div className="space-y-6">
+                  {sections.map(section => {
+                    const sectionQuestions = bank.questions.map((q, i) => ({ q, i })).filter(item => (item.q.section || 'General') === section);
+                    if (sectionQuestions.length === 0) return null;
                     return (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          setCurrentIdx(i);
-                          setShowMobileSidebar(false);
-                        }}
-                        className={`w-full aspect-square rounded-xl text-xs font-black transition-all border-2 ${statusClass}`}
-                      >
-                        {i + 1}
-                      </button>
+                      <div key={section} className="space-y-3">
+                        {sections.length > 1 && (
+                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{section}</h5>
+                        )}
+                        <div className="grid grid-cols-5 gap-2">
+                          {sectionQuestions.map(({ i }) => {
+                            let statusClass = 'bg-slate-50 text-slate-400 border-slate-100';
+                            if (currentIdx === i) statusClass = 'bg-orange-500 text-white border-orange-500';
+                            else if (marked[i]) statusClass = 'bg-yellow-400 text-white border-yellow-400';
+                            else if (answers[i] !== null) statusClass = 'bg-emerald-500 text-white border-emerald-500';
+
+                            return (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  setCurrentIdx(i);
+                                  setShowMobileSidebar(false);
+                                }}
+                                className={`w-full aspect-square rounded-xl text-xs font-black transition-all border-2 ${statusClass}`}
+                              >
+                                {i + 1}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

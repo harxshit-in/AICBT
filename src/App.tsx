@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
@@ -11,9 +12,18 @@ import SharedTest from './pages/SharedTest';
 import About from './pages/About';
 import Explore from './pages/Explore';
 import ParikshAI from './pages/ParikshAI';
+import Admin from './pages/Admin';
 import { PWAProvider } from './context/PWAContext';
+import { logAnalyticsEvent } from './utils/firebase';
 
 export default function App() {
+  useEffect(() => {
+    if (!sessionStorage.getItem('visited')) {
+      logAnalyticsEvent('visits');
+      sessionStorage.setItem('visited', 'true');
+    }
+  }, []);
+
   return (
     <PWAProvider>
       <Router>
@@ -30,6 +40,7 @@ export default function App() {
             <Route path="/omr" element={<OMRScan />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/about" element={<About />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </Layout>
       </Router>

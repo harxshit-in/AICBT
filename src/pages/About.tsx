@@ -1,12 +1,37 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer } from 'lucide-react';
+import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer, Share2, X } from 'lucide-react';
 
 export default function About() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showSharePopup, setShowSharePopup] = useState(false);
 
   const toggleSection = (id: string) => {
     setExpandedSection(expandedSection === id ? null : id);
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'AI CBT Platform',
+      text: 'Check out this amazing AI-powered Computer Based Test platform!',
+      url: window.location.origin
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Error sharing:', err);
+      }
+    } else {
+      setShowSharePopup(true);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    alert('Link copied to clipboard!');
+    setShowSharePopup(false);
   };
 
   return (
@@ -23,6 +48,13 @@ export default function About() {
         <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
           The next generation of exam preparation, powered by Gemini AI. Crafted for excellence.
         </p>
+        <button 
+          onClick={handleShare}
+          className="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors mt-4"
+        >
+          <Share2 className="w-5 h-5" />
+          Share App
+        </button>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -219,6 +251,46 @@ export default function About() {
           </div>
         </div>
       </motion.div>
+
+      {/* Share Popup Fallback */}
+      <AnimatePresence>
+        {showSharePopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative text-center"
+            >
+              <button 
+                onClick={() => setShowSharePopup(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <Share2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Share AI CBT</h3>
+              <p className="text-slate-500 font-medium mb-8">
+                Share this amazing platform with your friends and help them prepare better for their exams!
+              </p>
+              
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-600 truncate mr-4">
+                  {window.location.origin}
+                </span>
+                <button 
+                  onClick={copyLink}
+                  className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors whitespace-nowrap"
+                >
+                  Copy Link
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

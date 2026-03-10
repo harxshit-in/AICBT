@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { listenToNotifications } from '../utils/firebase';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -12,6 +13,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [showParikshAIPrompt, setShowParikshAIPrompt] = useState(false);
   const [isParikshAIMode, setIsParikshAIMode] = useState(false);
   const [apiKeyError, setApiKeyError] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // Request notification permission if not granted
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    const unsubscribe = listenToNotifications((newNotifications) => {
+      setNotifications(newNotifications);
+      
+      // Check for new notifications to show browser push
+      const lastSeenId = localStorage.getItem('last_seen_notification_id');
+      if (newNotifications.length > 0) {
+        const latest = newNotifications[0];
+        if (latest.id !== lastSeenId) {
+          setUnreadCount(prev => prev + 1);
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(latest.title, {
+              body: latest.body,
+              icon: '/icon-192x192.png',
+              image: latest.attachmentUrl || undefined
+            } as any);
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleOpenNotifications = () => {
+    setShowNotifications(true);
+    setUnreadCount(0);
+    if (notifications.length > 0) {
+      localStorage.setItem('last_seen_notification_id', notifications[0].id);
+    }
+  };
 
   useEffect(() => {
     // Check if we should show the install prompt
@@ -176,9 +217,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            <button 
+              onClick={handleOpenNotifications}
+              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors ml-2"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
           </div>
 
           <div className="md:hidden flex items-center gap-3">
+            <button 
+              onClick={handleOpenNotifications}
+              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
             {isInstallable && (
               <button 
                 onClick={installApp}
@@ -203,10 +262,88 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <X className="w-4 h-4" />
               Exit ParikshAI Mode
             </button>
+            <button 
+              onClick={handleOpenNotifications}
+              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
           </div>
         )}
         {children}
       </main>
+
+      {/* Notifications Panel */}
+      <AnimatePresence>
+        {showNotifications && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNotifications(false)}
+              className="fixed inset-0 z-[100] bg-slate-900/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 z-[110] w-full max-w-sm bg-white shadow-2xl border-l border-slate-100 flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-orange-500" />
+                  Notifications
+                </h2>
+                <button 
+                  onClick={() => setShowNotifications(false)}
+                  className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-12 text-slate-400">
+                    <Bell className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p className="font-medium">No notifications yet</p>
+                  </div>
+                ) : (
+                  notifications.map(notif => (
+                    <div key={notif.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                      <h3 className="font-bold text-slate-900 mb-1">{notif.title}</h3>
+                      <p className="text-sm text-slate-600 mb-3 leading-relaxed">{notif.body}</p>
+                      {notif.attachmentUrl && (
+                        <a 
+                          href={notif.attachmentUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-block mt-2"
+                        >
+                          <img 
+                            src={notif.attachmentUrl} 
+                            alt="Attachment" 
+                            className="w-full h-32 object-cover rounded-xl border border-slate-100"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </a>
+                      )}
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-3">
+                        {new Date(notif.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Nav for Mobile */}
       {!isParikshAIMode && (
