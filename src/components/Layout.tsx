@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { listenToNotifications } from '../utils/firebase';
+import { getAllBanks, QuestionBank } from '../utils/storage';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -16,6 +17,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [recentBanks, setRecentBanks] = useState<QuestionBank[]>([]);
+
+  useEffect(() => {
+    if (isSidebarOpen) {
+      getAllBanks().then(banks => {
+        setRecentBanks(banks.sort((a, b) => b.createdAt - a.createdAt));
+      });
+    }
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     // Request notification permission if not granted
@@ -106,6 +117,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: 'Explore', path: '/explore', icon: Globe },
     { name: 'ParikshAI', path: '/parikshai', icon: Brain },
+    { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
+    { name: 'AI Summary', path: '/ai-summary', icon: Headphones },
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Upload PDF', path: '/upload', icon: FileUp },
     { name: 'OMR Scan', path: '/omr', icon: ScanLine },
@@ -187,72 +200,138 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       {!isParikshAIMode && (
-        <nav className="sticky top-0 z-50 bg-white border-b border-slate-100 px-4 py-3 print:hidden">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="bg-orange-500 p-2 rounded-xl group-hover:scale-110 transition-transform">
-              <GraduationCap className="text-white w-6 h-6" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-slate-800">
-              AI <span className="text-orange-500">CBT</span>
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-orange-50 text-orange-600'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                  }`}
+        <>
+          {/* Top Navigation Bar */}
+          <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3 print:hidden">
+            <div className="flex items-center justify-between max-w-5xl mx-auto">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
-                  <Icon className="w-4 h-4" />
-                  {item.name}
+                  <Menu className="w-6 h-6" />
+                </button>
+                <Link to="/" className="flex items-center gap-2 group">
+                  <div className="bg-orange-500 p-1.5 rounded-lg group-hover:scale-105 transition-transform">
+                    <GraduationCap className="text-white w-5 h-5" />
+                  </div>
+                  <span className="text-xl font-bold tracking-tight text-slate-800">
+                    AI <span className="text-orange-500">CBT</span>
+                  </span>
                 </Link>
-              );
-            })}
-            <button 
-              onClick={handleOpenNotifications}
-              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors ml-2"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
-          </div>
+              </div>
 
-          <div className="md:hidden flex items-center gap-3">
-            <button 
-              onClick={handleOpenNotifications}
-              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
-            {isInstallable && (
-              <button 
-                onClick={installApp}
-                className="bg-orange-100 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"
-              >
-                <Download className="w-3 h-3" />
-                Install App
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleOpenNotifications}
+                  className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  <Bell className="w-6 h-6" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          {/* Sidebar Overlay */}
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="fixed inset-0 z-[120] bg-slate-900/20 backdrop-blur-sm"
+                />
+                <motion.div 
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className="fixed inset-y-0 left-0 z-[130] w-72 bg-white shadow-2xl border-r border-slate-100 flex flex-col"
+                >
+                  <div className="p-4 flex items-center justify-between border-b border-slate-100">
+                    <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-2">
+                      <div className="bg-slate-800 p-2 rounded-xl">
+                        <GraduationCap className="text-white w-5 h-5" />
+                      </div>
+                      <span className="text-lg font-bold text-slate-800">AI CBT</span>
+                    </Link>
+                    <button 
+                      onClick={() => setIsSidebarOpen(false)}
+                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
+                    {navItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setIsSidebarOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                            isActive
+                              ? 'bg-slate-100 text-slate-900'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+
+                    {recentBanks.length > 0 && (
+                      <div className="pt-6 pb-2">
+                        <div className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                          Recent Tests
+                        </div>
+                        <div className="space-y-1">
+                          {recentBanks.slice(0, 5).map(bank => (
+                            <Link
+                              key={bank.bankId}
+                              to={`/exam-overview/${bank.bankId}`}
+                              onClick={() => setIsSidebarOpen(false)}
+                              className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl truncate transition-colors"
+                            >
+                              {bank.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {isInstallable && (
+                    <div className="p-4 border-t border-slate-100">
+                      <button 
+                        onClick={() => {
+                          installApp();
+                          setIsSidebarOpen(false);
+                        }}
+                        className="w-full bg-slate-100 text-slate-700 px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        Install App
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              </>
             )}
-          </div>
-        </div>
-      </nav>
+          </AnimatePresence>
+        </>
       )}
 
-      <main className={`max-w-7xl mx-auto px-4 ${isParikshAIMode ? 'py-4' : 'py-8'}`}>
+      <main className={`max-w-5xl mx-auto px-4 ${isParikshAIMode ? 'py-4' : 'py-2'}`}>
         {isParikshAIMode && (
           <div className="mb-6 flex justify-between items-center print:hidden">
             <button 
@@ -345,26 +424,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Bottom Nav for Mobile */}
-      {!isParikshAIMode && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 flex items-center justify-around py-4 px-4 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] print:hidden">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all ${
-                isActive ? 'bg-orange-50 text-orange-600 scale-110' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Icon className="w-6 h-6" />
-            </Link>
-          );
-        })}
-      </div>
-      )}
+      {/* Bottom Nav for Mobile - Removed in favor of sidebar */}
 
       {/* First-time Install Prompt */}
       <AnimatePresence>

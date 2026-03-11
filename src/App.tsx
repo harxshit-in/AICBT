@@ -12,6 +12,8 @@ import SharedTest from './pages/SharedTest';
 import About from './pages/About';
 import Explore from './pages/Explore';
 import ParikshAI from './pages/ParikshAI';
+import AIVidyalay from './pages/AIVidyalay';
+import AISummary from './pages/AISummary';
 import Admin from './pages/Admin';
 import { PWAProvider } from './context/PWAContext';
 import { logAnalyticsEvent } from './utils/firebase';
@@ -32,6 +34,8 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/parikshai" element={<ParikshAI />} />
+            <Route path="/ai-vidyalay" element={<AIVidyalay />} />
+            <Route path="/ai-summary" element={<AISummary />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/exam-overview/:id" element={<ExamOverview />} />
             <Route path="/exam/:id" element={<Exam />} />

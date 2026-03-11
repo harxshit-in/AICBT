@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap, Globe, Key } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
@@ -86,6 +87,7 @@ export default function ParikshAI() {
   const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
 
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(true);
 
   const toggleSubject = (subject: string) => {
     setExpandedSubjects(prev => ({ ...prev, [subject]: !prev[subject] }));
@@ -103,6 +105,9 @@ export default function ParikshAI() {
     
     const savedSettings = localStorage.getItem('parikshai_settings');
     if (savedSettings) setCoachingSettings(JSON.parse(savedSettings));
+
+    const apiKey = localStorage.getItem('user_gemini_api_key');
+    setHasApiKey(!!apiKey);
   }, []);
 
   const saveExams = (newExams: ParikshAIExam[]) => {
@@ -509,7 +514,29 @@ export default function ParikshAI() {
         </div>
       </div>
 
-      {/* Settings Modal */}
+      {!hasApiKey ? (
+        <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-10 text-center space-y-6">
+          <div className="bg-red-100 w-20 h-20 rounded-3xl flex items-center justify-center text-red-600 mx-auto">
+            <Key className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-red-900">API Key Required</h2>
+            <p className="text-red-700 font-medium max-w-md mx-auto">
+              To use ParikshAI, you need to provide a Gemini API Key. 
+              This ensures your data stays private and the service remains free.
+            </p>
+          </div>
+          <Link
+            to="/settings"
+            className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95"
+          >
+            <Settings className="w-5 h-5" />
+            Go to Settings to add API Key
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* Settings Modal */}
       <AnimatePresence>
         {showSettings && (
           <motion.div 
@@ -1195,7 +1222,8 @@ export default function ParikshAI() {
           </motion.div>
         )}
       </AnimatePresence>
-
+      </>
+      )}
     </div>
   );
 }
