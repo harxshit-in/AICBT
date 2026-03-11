@@ -77,7 +77,7 @@ Do not include any markdown formatting like ** or #, just plain text that is eas
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.3,
