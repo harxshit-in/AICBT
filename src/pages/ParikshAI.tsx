@@ -9,6 +9,7 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { generateBankId, saveBank, QuestionBank } from '../utils/storage';
 import { shareBank, logAnalyticsEvent } from '../utils/firebase';
+import ErrorDialog from '../components/ErrorDialog';
 
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -88,6 +89,8 @@ export default function ParikshAI() {
 
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
+  const [error, setError] = useState('');
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
 
   const toggleSubject = (subject: string) => {
     setExpandedSubjects(prev => ({ ...prev, [subject]: !prev[subject] }));
@@ -256,7 +259,8 @@ export default function ParikshAI() {
       setProcessingStatus('');
     } catch (error: any) {
       console.error(error);
-      alert("Error processing PDF: " + error.message);
+      setError(error.message || 'Error processing PDF');
+      setShowErrorDialog(true);
     } finally {
       setIsProcessing(false);
     }
@@ -467,7 +471,8 @@ export default function ParikshAI() {
 
     } catch (error: any) {
       console.error(error);
-      alert("Error generating analysis: " + error.message);
+      setError(error.message || 'Error generating analysis');
+      setShowErrorDialog(true);
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -482,6 +487,12 @@ export default function ParikshAI() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20">
+      <ErrorDialog 
+        isOpen={showErrorDialog} 
+        error={error} 
+        context="ParikshAI" 
+        onClose={() => setShowErrorDialog(false)} 
+      />
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden print:hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/20 rounded-full blur-3xl -mr-20 -mt-20" />

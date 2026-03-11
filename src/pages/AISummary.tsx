@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Headphones, Search, Loader2, Play, Pause, RefreshCcw, Download, FileText, CheckCircle2, Key, Settings } from 'lucide-react';
 import { generateSummaryText, generateSummaryAudio, generateTestFromSummary } from '../utils/aiSummary';
 import { saveBank, generateBankId } from '../utils/storage';
+import ErrorDialog from '../components/ErrorDialog';
 
 const EXAMS = [
   'UPSC CSE', 'SSC CGL', 'SSC CHSL', 'IBPS PO', 'SBI Clerk', 'RRB NTPC', 'NDA', 'CDS', 'State PSC'
@@ -23,6 +24,7 @@ export default function AISummary() {
   const [loading, setLoading] = useState(false);
   const [generatingTest, setGeneratingTest] = useState(false);
   const [error, setError] = useState('');
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [isGenerated, setIsGenerated] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
   
@@ -61,6 +63,7 @@ export default function AISummary() {
       setIsGenerated(true);
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating summary.');
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
@@ -117,12 +120,19 @@ export default function AISummary() {
       navigate(`/exam-overview/${bankId}`);
     } catch (err: any) {
       setError(err.message || 'Failed to generate test.');
+      setShowErrorDialog(true);
       setGeneratingTest(false);
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <ErrorDialog 
+        isOpen={showErrorDialog} 
+        error={error} 
+        context="AISummary" 
+        onClose={() => setShowErrorDialog(false)} 
+      />
       <header className="text-center space-y-4 mb-12">
         <div className="inline-flex items-center justify-center p-4 bg-purple-50 rounded-3xl mb-2">
           <Headphones className="w-10 h-10 text-purple-600" />

@@ -5,6 +5,7 @@ import { extractFromPDF, extractFromImages } from '../utils/aiExtractor';
 import { saveBank, generateBankId } from '../utils/storage';
 import { logAnalyticsEvent } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
+import ErrorDialog from './ErrorDialog';
 
 export default function PDFUploader({ onComplete }: { onComplete: () => void }) {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +14,7 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
   const [error, setError] = useState('');
   const [extractedQuestions, setExtractedQuestions] = useState<any[]>([]);
   const [selectedLang, setSelectedLang] = useState<'both' | 'english' | 'hindi'>('both');
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +71,7 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
       console.error(err);
       setError(err.message || 'An error occurred during extraction.');
       setStatus('error');
+      setShowErrorDialog(true);
     }
   };
 
@@ -90,6 +93,7 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
     } catch (err: any) {
       setError('Failed to save question bank.');
       setStatus('error');
+      setShowErrorDialog(true);
     }
   };
 
@@ -105,6 +109,12 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
 
   return (
     <div className="w-full max-w-2xl mx-auto">
+      <ErrorDialog 
+        isOpen={showErrorDialog} 
+        error={error} 
+        context="PDFUploader" 
+        onClose={() => setShowErrorDialog(false)} 
+      />
       <div
         className={`relative border-2 border-dashed rounded-3xl p-12 transition-all ${
           status === 'idle' ? 'border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer' : 'border-orange-200 bg-orange-50'

@@ -5,6 +5,7 @@ import { GraduationCap, Image as ImageIcon, FileText, Loader2, Search, ArrowRigh
 import { generateVidyalayText, generateVidyalaySlides, generateSlideImage, generateVidyalayTest, SlideData } from '../utils/aiVidyalay';
 import { saveBank, generateBankId } from '../utils/storage';
 import ReactMarkdown from 'react-markdown';
+import ErrorDialog from '../components/ErrorDialog';
 
 const EXAMS = [
   'UPSC CSE', 'SSC CGL', 'SSC CHSL', 'IBPS PO', 'SBI Clerk', 'RRB NTPC', 'NDA', 'CDS', 'State PSC'
@@ -19,6 +20,7 @@ export default function AIVidyalay() {
   const [error, setError] = useState('');
   const [isGenerated, setIsGenerated] = useState(false);
   const [creatingTest, setCreatingTest] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
   
   const [resultText, setResultText] = useState('');
@@ -79,6 +81,7 @@ export default function AIVidyalay() {
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating content.');
+      setShowErrorDialog(true);
     } finally {
       setLoading(false);
     }
@@ -158,6 +161,7 @@ export default function AIVidyalay() {
       navigate(`/exam-overview/${bankId}`);
     } catch (err: any) {
       setError(err.message || 'Failed to create test.');
+      setShowErrorDialog(true);
     } finally {
       setCreatingTest(false);
     }
@@ -165,6 +169,12 @@ export default function AIVidyalay() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      <ErrorDialog 
+        isOpen={showErrorDialog} 
+        error={error} 
+        context="AIVidyalay" 
+        onClose={() => setShowErrorDialog(false)} 
+      />
       <header className="text-center space-y-4 mb-12">
         <div className="inline-flex items-center justify-center p-4 bg-blue-50 rounded-3xl mb-2">
           <GraduationCap className="w-10 h-10 text-blue-600" />

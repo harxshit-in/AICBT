@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { listenToNotifications } from '../utils/firebase';
 import { getAllBanks, QuestionBank } from '../utils/storage';
+import BugReportDialog from './BugReportDialog';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isInstallable, installApp } = usePWA();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [showParikshAIPrompt, setShowParikshAIPrompt] = useState(false);
-  const [isParikshAIMode, setIsParikshAIMode] = useState(false);
-  const [apiKeyError, setApiKeyError] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [recentBanks, setRecentBanks] = useState<QuestionBank[]>([]);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -77,33 +76,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [isInstallable]);
 
-  useEffect(() => {
-    // Show ParikshAI prompt on load if not already in ParikshAI mode
-    const hasSeenParikshAIPrompt = sessionStorage.getItem('has_seen_parikshai_prompt');
-    if (!hasSeenParikshAIPrompt && location.pathname !== '/parikshai') {
-      setShowParikshAIPrompt(true);
-    }
-  }, [location.pathname]);
-
-  const handleTryParikshAI = () => {
-    const apiKey = localStorage.getItem('user_gemini_api_key');
-    if (!apiKey) {
-      setApiKeyError(true);
-      return;
-    }
-    
-    setApiKeyError(false);
-    setShowParikshAIPrompt(false);
-    setIsParikshAIMode(true);
-    sessionStorage.setItem('has_seen_parikshai_prompt', 'true');
-    navigate('/parikshai');
-  };
-
-  const dismissParikshAIPrompt = () => {
-    setShowParikshAIPrompt(false);
-    sessionStorage.setItem('has_seen_parikshai_prompt', 'true');
-  };
-
   const dismissPrompt = () => {
     setShowInstallPrompt(false);
     localStorage.setItem('has_seen_install_prompt', 'true');
@@ -128,81 +100,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
-      <AnimatePresence>
-        {showParikshAIPrompt && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
-            >
-              <button 
-                onClick={dismissParikshAIPrompt}
-                className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              
-              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="bg-orange-500 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30">
-                  <Brain className="w-8 h-8 text-white" />
-                </div>
-                
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Try Pariksh<span className="text-orange-500">AI</span> Mode</h2>
-                  <p className="text-slate-500 font-medium">Experience the full power of AI-driven exam analysis. Upload past papers, get trend reports, and generate study strategies instantly.</p>
-                </div>
-
-                {apiKeyError && (
-                  <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-sm font-bold flex items-start gap-3 border border-red-100">
-                    <Key className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div>
-                      <p>API Key required for ParikshAI.</p>
-                      <button 
-                        onClick={() => {
-                          setShowParikshAIPrompt(false);
-                          navigate('/settings');
-                        }}
-                        className="underline mt-1 hover:text-red-700"
-                      >
-                        Go to Settings to set it up
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <button 
-                  onClick={handleTryParikshAI}
-                  className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-slate-900/20"
-                >
-                  Enter ParikshAI Mode
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-                
-                <button 
-                  onClick={dismissParikshAIPrompt}
-                  className="w-full text-slate-500 font-bold py-3 hover:text-slate-800 transition-colors"
-                >
-                  Continue to standard app
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {!isParikshAIMode && (
-        <>
-          {/* Top Navigation Bar */}
-          <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3 print:hidden">
+      {/* Top Navigation Bar */}
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3 print:hidden">
             <div className="flex items-center justify-between max-w-5xl mx-auto">
               <div className="flex items-center gap-4">
                 <button 
@@ -289,6 +188,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       );
                     })}
 
+                    <button
+                      onClick={() => {
+                        setShowBugReport(true);
+                        setIsSidebarOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all mt-2"
+                    >
+                      <Bug className="w-5 h-5" />
+                      Report Bug
+                    </button>
+
                     {recentBanks.length > 0 && (
                       <div className="pt-6 pb-2">
                         <div className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
@@ -328,30 +238,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </AnimatePresence>
-        </>
-      )}
 
-      <main className={`max-w-5xl mx-auto px-4 ${isParikshAIMode ? 'py-4' : 'py-2'}`}>
-        {isParikshAIMode && (
-          <div className="mb-6 flex justify-between items-center print:hidden">
-            <button 
-              onClick={() => setIsParikshAIMode(false)}
-              className="text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl transition-colors"
-            >
-              <X className="w-4 h-4" />
-              Exit ParikshAI Mode
-            </button>
-            <button 
-              onClick={handleOpenNotifications}
-              className="relative p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
-          </div>
-        )}
+      <main className="max-w-5xl mx-auto px-4 py-2">
         {children}
       </main>
 
@@ -427,6 +315,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Bottom Nav for Mobile - Removed in favor of sidebar */}
 
       {/* First-time Install Prompt */}
+      <BugReportDialog isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
       <AnimatePresence>
         {showInstallPrompt && (
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 sm:p-6 bg-slate-900/40 backdrop-blur-sm">

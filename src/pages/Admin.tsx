@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData } from '../utils/firebase';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors } from '../utils/firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
-import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain } from 'lucide-react';
+import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Admin() {
@@ -20,7 +20,9 @@ export default function Admin() {
   
   const [dailyStats, setDailyStats] = useState<any[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'tests' | 'analytics'>('tests');
+  const [reportedBugs, setReportedBugs] = useState<any[]>([]);
+  const [reportedErrors, setReportedErrors] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs'>('tests');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -29,10 +31,22 @@ export default function Admin() {
       if (currentUser) {
         fetchBanks();
         fetchAnalytics();
+        fetchBugsAndErrors();
       }
     });
     return () => unsubscribe();
   }, []);
+
+  const fetchBugsAndErrors = async () => {
+    try {
+      const bugs = await getReportedBugs();
+      const errors = await getReportedErrors();
+      setReportedBugs(bugs);
+      setReportedErrors(errors);
+    } catch (err) {
+      console.error("Failed to fetch bugs and errors", err);
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -227,10 +241,16 @@ export default function Admin() {
                 >
                   Analytics
                 </button>
+                <button 
+                  onClick={() => setActiveTab('bugs')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'bugs' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Bugs & Errors
+                </button>
               </div>
             </div>
 
-            {activeTab === 'tests' ? (
+            {activeTab === 'tests' && (
               <div className="space-y-4">
                 {banks.map(bank => (
                   <div key={bank.bankId} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -270,7 +290,9 @@ export default function Admin() {
                 ))}
                 {banks.length === 0 && <p className="text-slate-500 text-center py-4 font-medium">No shared tests found.</p>}
               </div>
-            ) : (
+            )}
+            
+            {activeTab === 'analytics' && (
               <div className="space-y-8">
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -336,6 +358,73 @@ export default function Admin() {
                     ))}
                     {monthlyStats.length === 0 && <p className="text-slate-500 text-center py-4 font-medium">No monthly data available yet.</p>}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'bugs' && (
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <Bug className="w-5 h-5 text-red-500" /> Reported Bugs
+                  </h3>
+                  {reportedBugs.length === 0 ? (
+                    <p className="text-slate-500 text-sm">No bugs reported yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {reportedBugs.map(bug => (
+                        <div key={bug.id} className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold text-red-400 uppercase tracking-wider">
+                              {new Date(bug.createdAt).toLocaleString()}
+                            </span>
+                            <span className="text-xs font-bold px-2 py-1 bg-red-100 text-red-700 rounded-md uppercase">
+                              {bug.status}
+                            </span>
+                          </div>
+                          <p className="font-medium text-slate-900 mb-2">{bug.description}</p>
+                          {bug.steps && (
+                            <div className="text-sm text-slate-600 bg-white/50 p-2 rounded-lg mb-2">
+                              <strong>Steps:</strong> {bug.steps}
+                            </div>
+                          )}
+                          <div className="text-xs text-slate-500 truncate">
+                            URL: {bug.url}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-500" /> System Errors
+                  </h3>
+                  {reportedErrors.length === 0 ? (
+                    <p className="text-slate-500 text-sm">No errors reported yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {reportedErrors.map(err => (
+                        <div key={err.id} className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">
+                              {new Date(err.createdAt).toLocaleString()}
+                            </span>
+                            <span className="text-xs font-bold px-2 py-1 bg-orange-100 text-orange-700 rounded-md uppercase">
+                              {err.context}
+                            </span>
+                          </div>
+                          <p className="font-mono text-sm text-red-600 mb-2 break-words bg-white/50 p-2 rounded-lg">
+                            {err.message}
+                          </p>
+                          <div className="text-xs text-slate-500 truncate">
+                            URL: {err.url}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

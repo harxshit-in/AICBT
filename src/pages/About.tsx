@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer, Share2, X } from 'lucide-react';
+import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer, Share2, X, Brain, Headphones, ScanLine, FileUp } from 'lucide-react';
 
 export default function About() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -125,6 +125,72 @@ export default function About() {
           </div>
         </motion.div>
       </div>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl shadow-slate-200/50 space-y-8 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -mr-20 -mt-20" />
+        <h2 className="text-3xl font-black text-slate-900 flex items-center gap-3 relative z-10">
+          <div className="bg-blue-500 p-2 rounded-xl text-white">
+            <Brain className="w-6 h-6" />
+          </div>
+          AI Models & Features
+        </h2>
+        <p className="text-slate-600 leading-relaxed text-lg relative z-10">
+          AI CBT is powered by multiple specialized AI models designed to enhance every aspect of your exam preparation. Here is how they work:
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+          {[
+            {
+              title: "ParikshAI Mode",
+              icon: Brain,
+              color: "text-purple-500",
+              bgColor: "bg-purple-50",
+              desc: "Upload past papers to get deep trend reports, chapter-wise analysis, and generate personalized study strategies instantly."
+            },
+            {
+              title: "AI Vidyalay",
+              icon: GraduationCap,
+              color: "text-blue-500",
+              bgColor: "bg-blue-50",
+              desc: "Generate comprehensive study materials, detailed notes, and visual slides from any topic or chapter name."
+            },
+            {
+              title: "AI Summary Podcast",
+              icon: Headphones,
+              color: "text-emerald-500",
+              bgColor: "bg-emerald-50",
+              desc: "Get a detailed, narrated audio summary of any topic. Listen and learn on the go, then take a quick test on what you heard."
+            },
+            {
+              title: "PDF to CBT Extraction",
+              icon: FileUp,
+              color: "text-orange-500",
+              bgColor: "bg-orange-50",
+              desc: "Convert static PDF exam papers into interactive online tests automatically using advanced vision and text extraction models."
+            },
+            {
+              title: "OMR Sheet Scanning",
+              icon: ScanLine,
+              color: "text-pink-500",
+              bgColor: "bg-pink-50",
+              desc: "Scan physical OMR sheets using your device camera to instantly grade them against digital answer keys with high accuracy."
+            }
+          ].map((feature, idx) => (
+            <div key={idx} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 hover:shadow-md transition-shadow">
+              <div className={`w-12 h-12 rounded-2xl ${feature.bgColor} flex items-center justify-center mb-4`}>
+                <feature.icon className={`w-6 h-6 ${feature.color}`} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">{feature.title}</h3>
+              <p className="text-slate-600 font-medium leading-relaxed">{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+      </motion.div>
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}

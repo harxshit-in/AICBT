@@ -121,3 +121,39 @@ export async function getAnalyticsData(type: 'daily' | 'monthly'): Promise<any[]
   const snap = await getDocs(q);
   return snap.docs.map(d => d.data());
 }
+
+export async function reportError(errorDetails: any): Promise<void> {
+  try {
+    await addDoc(collection(db, "error_logs"), {
+      ...errorDetails,
+      createdAt: Date.now(),
+      status: 'open'
+    });
+  } catch (e) {
+    console.error("Failed to report error", e);
+  }
+}
+
+export async function reportBug(bugDetails: any): Promise<void> {
+  try {
+    await addDoc(collection(db, "bug_reports"), {
+      ...bugDetails,
+      createdAt: Date.now(),
+      status: 'open'
+    });
+  } catch (e) {
+    console.error("Failed to report bug", e);
+  }
+}
+
+export async function getReportedErrors(): Promise<any[]> {
+  const q = query(collection(db, "error_logs"), orderBy("createdAt", "desc"), limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getReportedBugs(): Promise<any[]> {
+  const q = query(collection(db, "bug_reports"), orderBy("createdAt", "desc"), limit(50));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
