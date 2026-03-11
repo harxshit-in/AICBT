@@ -1,6 +1,7 @@
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { Type, ThinkingLevel } from "@google/genai";
 import { parseQuestions } from "./parser";
 import { Question } from "./storage";
+import { getAI, withRetry } from "./aiClient";
 
 const PROMPT = `
 Extract MCQ questions with (a)(b)(c)(d) options from this exam paper.
@@ -16,18 +17,12 @@ Rules:
 9. Return ONLY a JSON array of objects with this structure: [{"question":"...","options":["a","b","c","d"],"correct":1, "language": "english" | "hindi"}]
 `;
 
-async function getAI() {
-  const apiKey = localStorage.getItem('user_gemini_api_key');
-  if (!apiKey) throw new Error('Gemini API Key not found in settings.');
-  return new GoogleGenAI({ apiKey });
-}
-
 export async function extractFromPDF(file: File): Promise<Question[]> {
   const ai = await getAI();
   const buf = await file.arrayBuffer();
   const base64 = btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: [
       {
@@ -46,7 +41,7 @@ export async function extractFromPDF(file: File): Promise<Question[]> {
       temperature: 0.1,
       thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
-  });
+  }));
 
   return parseQuestions(response.text || '');
 }
@@ -65,14 +60,14 @@ export async function extractFromImages(images: { base64: string; mimeType: stri
     }))
   ];
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: [{ parts }],
     config: {
       temperature: 0.1,
       thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
-  });
+  }));
 
   return parseQuestions(response.text || '');
 }
@@ -87,7 +82,7 @@ export async function scanOMR(imageBase64: string, answerKey: number[]): Promise
     If a question is skipped, use null.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: [
       {
@@ -106,7 +101,7 @@ export async function scanOMR(imageBase64: string, answerKey: number[]): Promise
       temperature: 0.1,
       responseMimeType: "application/json"
     }
-  });
+  }));
 
   try {
     const studentAnswers = JSON.parse(response.text || '[]');
@@ -146,7 +141,7 @@ export async function categorizeBank(bankName: string, questions: Question[]): P
     Return ONLY a JSON object: {"category": "...", "tags": ["...", "..."]}
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: [{ parts: [{ text: prompt }] }],
     config: {
@@ -154,7 +149,7 @@ export async function categorizeBank(bankName: string, questions: Question[]): P
       responseMimeType: "application/json",
       thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
-  });
+  }));
 
   try {
     return JSON.parse(response.text || '{"category": "General", "tags": []}');

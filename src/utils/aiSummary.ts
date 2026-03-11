@@ -1,11 +1,6 @@
-import { GoogleGenAI, Modality, Type, ThinkingLevel } from "@google/genai";
+import { Modality, Type, ThinkingLevel } from "@google/genai";
 import { Question } from "./storage";
-
-async function getAI() {
-  const apiKey = localStorage.getItem('user_gemini_api_key');
-  if (!apiKey) throw new Error('Gemini API Key not found in settings. Please configure it first.');
-  return new GoogleGenAI({ apiKey });
-}
+import { getAI, withRetry } from "./aiClient";
 
 export async function generateTestFromSummary(summaryText: string, topic: string, language: string): Promise<Question[]> {
   const ai = await getAI();
@@ -19,7 +14,7 @@ Summary Text:
 ${summaryText}
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: prompt,
     config: {
@@ -43,7 +38,7 @@ ${summaryText}
         }
       }
     }
-  });
+  }));
 
   const text = response.text || "[]";
   try {
@@ -76,13 +71,13 @@ The output MUST be entirely in ${langInstruction}.
 Do not include any markdown formatting like ** or #, just plain text that is easy to read aloud.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: prompt,
     config: {
       temperature: 0.3,
     }
-  });
+  }));
 
   return response.text || "Failed to generate summary.";
 }
@@ -141,7 +136,7 @@ export async function generateSummaryAudio(text: string, language: string): Prom
   // We will use 'Kore' as default.
   
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
       config: {
@@ -152,7 +147,7 @@ export async function generateSummaryAudio(text: string, language: string): Prom
             },
         },
       },
-    });
+    }));
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {

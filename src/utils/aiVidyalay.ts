@@ -1,11 +1,6 @@
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { Type } from "@google/genai";
 import { Question } from "./storage";
-
-async function getAI() {
-  const apiKey = localStorage.getItem('user_gemini_api_key');
-  if (!apiKey) throw new Error('Gemini API Key not found in settings. Please configure it first.');
-  return new GoogleGenAI({ apiKey });
-}
+import { getAI, withRetry } from "./aiClient";
 
 export interface SlideData {
   title: string;
@@ -29,14 +24,14 @@ Include:
 Format the output as clean Markdown.
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
       temperature: 0.2,
     }
-  });
+  }));
 
   return response.text || "Failed to generate content.";
 }
@@ -57,7 +52,7 @@ Return a JSON array of objects. Each object must have:
 - "imagePrompt": A detailed prompt to generate an educational infographic or visual note for this slide. IMPORTANT: Image generation models often misspell words, especially in Hindi/Hinglish. To fix this, you MUST provide EXACT, SHORT phrases enclosed in quotes for the model to render. Use simple Hinglish (Hindi in English alphabet). Keep the text extremely brief (maximum 2-4 words per text element) to ensure 100% correct spelling. Example: "An educational infographic. Include a bold title with the exact text 'Regulating Act'. Include a label with the exact text 'Supreme Court'."
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: prompt,
     config: {
@@ -77,7 +72,7 @@ Return a JSON array of objects. Each object must have:
         }
       }
     }
-  });
+  }));
 
   try {
     const jsonStr = response.text?.trim() || "[]";
@@ -92,7 +87,7 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
   const ai = await getAI();
   
   try {
-    const response = await ai.models.generateContent({
+    const response = await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -106,7 +101,7 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
           aspectRatio: "16:9"
         }
       },
-    });
+    }));
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
@@ -133,7 +128,7 @@ Return ONLY a JSON array of objects with this structure:
 (where correct is the 0-based index of the correct option).
 `;
 
-  const response = await ai.models.generateContent({
+  const response = await withRetry(() => ai.models.generateContent({
     model: "gemini-flash-latest",
     contents: prompt,
     config: {
@@ -156,7 +151,7 @@ Return ONLY a JSON array of objects with this structure:
         }
       }
     }
-  });
+  }));
 
   try {
     const jsonStr = response.text?.trim() || "[]";

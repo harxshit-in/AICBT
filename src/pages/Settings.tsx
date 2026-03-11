@@ -3,6 +3,7 @@ import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePWA } from '../context/PWAContext';
+import { withRetry } from '../utils/aiClient';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
@@ -30,12 +31,11 @@ export default function Settings() {
 
     try {
       const genAI = new GoogleGenAI({ apiKey });
-      const model = genAI.models.generateContent({
+      const response = await withRetry(() => genAI.models.generateContent({
         model: 'gemini-flash-latest',
         contents: 'Hello, are you working?',
-      });
+      }));
       
-      const response = await model;
       if (response.text) {
         localStorage.setItem('user_gemini_api_key', apiKey);
         setStatus('valid');

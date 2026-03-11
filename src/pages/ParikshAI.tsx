@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap, Globe, Key } from 'lucide-react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { Type } from '@google/genai';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { generateBankId, saveBank, QuestionBank } from '../utils/storage';
 import { shareBank, logAnalyticsEvent } from '../utils/firebase';
 import ErrorDialog from '../components/ErrorDialog';
+import { getAI, withRetry } from '../utils/aiClient';
 
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -170,10 +171,7 @@ export default function ParikshAI() {
       }
 
       setProcessingStatus('Analyzing questions with Gemini AI...');
-      const apiKey = localStorage.getItem('user_gemini_api_key');
-      if (!apiKey) throw new Error("Gemini API key not found. Please set it in Settings.");
-      
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getAI();
       
       const prompt = `
         You are an expert educational data extractor.
@@ -200,7 +198,7 @@ export default function ParikshAI() {
         ${answerText ? `Answer Key Text:\n${answerText.substring(0, 10000)}` : ''}
       `;
 
-      const response = await ai.models.generateContent({
+      const response = await withRetry(() => ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt,
         config: {
@@ -222,7 +220,7 @@ export default function ParikshAI() {
             }
           }
         }
-      });
+      }));
 
       let extractedQuestions: StructuredQuestion[] = [];
       try {
@@ -284,10 +282,7 @@ export default function ParikshAI() {
     setProcessingStatus('Generating AI Trend Analysis & Study Strategy...');
     
     try {
-      const apiKey = localStorage.getItem('user_gemini_api_key');
-      if (!apiKey) throw new Error("Gemini API key not found.");
-      
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getAI();
       
       const allQuestions = exam.papers.flatMap(p => p.questions);
       
@@ -308,7 +303,7 @@ export default function ParikshAI() {
         ${JSON.stringify(allQuestions)}
       `;
 
-      const response = await ai.models.generateContent({
+      const response = await withRetry(() => ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: prompt,
         config: {
@@ -395,7 +390,7 @@ export default function ParikshAI() {
             }
           }
         }
-      });
+      }));
 
       let analysis: ExamAnalysis;
       try {
