@@ -31,7 +31,7 @@ export default function Settings() {
     try {
       const genAI = new GoogleGenAI({ apiKey });
       const model = genAI.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: 'Hello, are you working?',
       });
       

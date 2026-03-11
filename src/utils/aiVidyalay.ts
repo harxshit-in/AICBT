@@ -30,7 +30,7 @@ Format the output as clean Markdown.
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
@@ -58,7 +58,7 @@ Return a JSON array of objects. Each object must have:
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
@@ -134,7 +134,7 @@ Return ONLY a JSON array of objects with this structure:
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     contents: prompt,
     config: {
       temperature: 0.2,

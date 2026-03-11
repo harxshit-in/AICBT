@@ -20,7 +20,7 @@ ${summaryText}
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     contents: prompt,
     config: {
       temperature: 0.2,
@@ -77,7 +77,7 @@ Do not include any markdown formatting like ** or #, just plain text that is eas
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     contents: prompt,
     config: {
       temperature: 0.3,
