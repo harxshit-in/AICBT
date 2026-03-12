@@ -1,4 +1,4 @@
-import { Modality, Type } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Modality, Type } from "@google/genai";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
@@ -133,31 +133,28 @@ function createWavDataUrl(base64Pcm: string, sampleRate: number = 24000): string
 export async function generateSummaryAudio(text: string, language: string): Promise<string> {
   const { ai, systemInstruction } = await getAI();
   
-  // For Hindi/Hinglish, we might want a specific voice, but 'Kore' or 'Puck' works generally.
-  // We will use 'Kore' as default.
-  
   try {
-    const response = await withRetry(() => ai.models.generateContent({
+    const response = (await withRetry(() => ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
             voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
+              prebuiltVoiceConfig: { voiceName: 'Puck' },
             },
         },
-        systemInstruction
       },
-    }));
+    }))) as GenerateContentResponse;
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {
       return createWavDataUrl(base64Audio, 24000);
     }
-    return "";
-  } catch (e) {
+    console.error("No audio data in response", response);
+    throw new Error("No audio data returned from API.");
+  } catch (e: any) {
     console.error("Failed to generate audio", e);
-    throw new Error("Failed to generate audio narration.");
+    throw new Error(`Failed to generate audio narration: ${e.message || 'Unknown error'}`);
   }
 }

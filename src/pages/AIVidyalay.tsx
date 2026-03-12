@@ -394,9 +394,14 @@ export default function AIVidyalay() {
             
             <div className="p-8">
               <h2 className="text-2xl font-black text-slate-900 mb-4">{slides[currentSlide].title}</h2>
-              <div className="prose prose-slate max-w-none">
+              <div className="prose prose-slate max-w-none mb-6">
                 <ReactMarkdown>{slides[currentSlide].content}</ReactMarkdown>
               </div>
+              {slides[currentSlide].imageExplanation && (
+                <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-sm text-blue-800 font-medium italic">
+                  {slides[currentSlide].imageExplanation}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
