@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors } from '../utils/firebase';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage } from '../utils/firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
-import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle } from 'lucide-react';
+import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Admin() {
@@ -22,7 +22,10 @@ export default function Admin() {
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [reportedBugs, setReportedBugs] = useState<any[]>([]);
   const [reportedErrors, setReportedErrors] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs'>('tests');
+  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs' | 'news'>('tests');
+  const [news, setNews] = useState<any[]>([]);
+
+  const [usageStats, setUsageStats] = useState<any[]>([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -32,10 +35,39 @@ export default function Admin() {
         fetchBanks();
         fetchAnalytics();
         fetchBugsAndErrors();
+        fetchNews();
+        fetchUsage();
       }
     });
     return () => unsubscribe();
   }, []);
+
+  const fetchUsage = async () => {
+    try {
+      const data = await getAnalyticsUsage();
+      setUsageStats(data);
+    } catch (err) {
+      console.error("Failed to fetch usage analytics", err);
+    }
+  };
+
+  const fetchNews = async () => {
+    try {
+      const data = await getAllCurrentAffairs();
+      setNews(data);
+    } catch (err) {
+      console.error("Failed to fetch news", err);
+    }
+  };
+
+  const handleApproveNews = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateCurrentAffairsStatus(id, !currentStatus);
+      fetchNews();
+    } catch (err) {
+      console.error("Failed to update news status", err);
+    }
+  };
 
   const fetchBugsAndErrors = async () => {
     try {
@@ -247,6 +279,12 @@ export default function Admin() {
                 >
                   Bugs & Errors
                 </button>
+                <button 
+                  onClick={() => setActiveTab('news')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'news' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Current Affairs
+                </button>
               </div>
             </div>
 
@@ -342,26 +380,50 @@ export default function Admin() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-emerald-500" />
-                    Monthly Stats
+                    Feature & Model Usage
                   </h3>
                   <div className="space-y-3">
-                    {monthlyStats.map((stat, idx) => (
+                    {usageStats.map((stat, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <span className="font-bold text-slate-900">{stat.month}</span>
+                        <span className="font-bold text-slate-900">{stat.feature} ({stat.model})</span>
                         <div className="flex gap-4 text-sm font-medium text-slate-600">
-                          <span>Visits: {stat.visits || 0}</span>
-                          <span>Shares: {stat.shares || 0}</span>
-                          <span>Uploads: {stat.pdf_uploads || 0}</span>
-                          <span>AI: {stat.ai_analyses || 0}</span>
+                          <span>Success: {stat.success || 0}</span>
+                          <span>Failure: {stat.failure || 0}</span>
+                          <span>Total: {stat.count || 0}</span>
                         </div>
                       </div>
                     ))}
-                    {monthlyStats.length === 0 && <p className="text-slate-500 text-center py-4 font-medium">No monthly data available yet.</p>}
+                    {usageStats.length === 0 && <p className="text-slate-500 text-center py-4 font-medium">No usage data available yet.</p>}
                   </div>
                 </div>
               </div>
             )}
 
+            {activeTab === 'news' && (
+              <div className="space-y-4">
+                {news.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <h3 className="font-bold text-slate-900">{item.title || 'Untitled News'}</h3>
+                      <p className="text-xs text-slate-500 font-medium">{new Date(item.createdAt).toLocaleDateString()}</p>
+                      <div className="mt-2">
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${item.approved ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {item.approved ? 'Approved' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => handleApproveNews(item.id, item.approved)}
+                      className={`p-2 rounded-xl transition-colors ${item.approved ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'}`}
+                    >
+                      {item.approved ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                    </button>
+                  </div>
+                ))}
+                {news.length === 0 && <p className="text-slate-500 text-center py-4 font-medium">No news items found.</p>}
+              </div>
+            )}
+            
             {activeTab === 'bugs' && (
               <div className="space-y-8">
                 <div>

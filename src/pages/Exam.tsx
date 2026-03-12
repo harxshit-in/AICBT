@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBank, QuestionBank, saveResult, ExamResult } from '../utils/storage';
+import { getBank, QuestionBank, saveResult, ExamResult, updateUserStats } from '../utils/storage';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -82,10 +82,13 @@ export default function Exam() {
     const correctAnswers = bank.questions.map(q => q.correct);
     let correctCount = 0;
     let incorrectCount = 0;
+    const questionResults: boolean[] = [];
     
     answers.forEach((ans, i) => {
+      const isCorrect = ans !== null && ans === correctAnswers[i];
+      questionResults.push(isCorrect);
       if (ans !== null) {
-        if (ans === correctAnswers[i]) correctCount++;
+        if (isCorrect) correctCount++;
         else incorrectCount++;
       }
     });
@@ -119,10 +122,12 @@ export default function Exam() {
       incorrectCount,
       timeTaken,
       timestamp: Date.now(),
-      accuracy
+      accuracy,
+      questionResults
     };
 
     await saveResult(examResult);
+    await updateUserStats(examResult, bank.questions);
     localStorage.setItem('last_exam_results', JSON.stringify(results));
     navigate('/results');
   }, [bank, answers, timeLeft, navigate]);

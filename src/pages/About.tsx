@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer, Share2, X, Brain, Headphones, ScanLine, FileUp } from 'lucide-react';
+import { GraduationCap, ExternalLink, Mail, Globe, ShieldCheck, Zap, FileText, Lock, Eye, Scale, ChevronDown, ChevronUp, Timer, Share2, X, Brain, Headphones, ScanLine, FileUp, Sparkles } from 'lucide-react';
 
 export default function About() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -48,13 +48,25 @@ export default function About() {
         <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium">
           The next generation of exam preparation, powered by Gemini AI. Crafted for excellence.
         </p>
-        <button 
-          onClick={handleShare}
-          className="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors mt-4"
-        >
-          <Share2 className="w-5 h-5" />
-          Share App
-        </button>
+        <div className="flex flex-wrap justify-center gap-4">
+          <button 
+            onClick={handleShare}
+            className="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition-colors mt-4"
+          >
+            <Share2 className="w-5 h-5" />
+            Share App
+          </button>
+          <button 
+            onClick={() => {
+              localStorage.removeItem('has_seen_intro');
+              window.location.reload();
+            }}
+            className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition-colors mt-4"
+          >
+            <Sparkles className="w-5 h-5 text-orange-500" />
+            Show Intro Again
+          </button>
+        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

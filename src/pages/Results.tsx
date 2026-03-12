@@ -12,10 +12,16 @@ import {
   Medal,
   Users,
   Target,
-  Zap
+  Zap,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getBank, QuestionBank, getResultsForBank, ExamResult } from '../utils/storage';
+import { getAI, withRetry } from '../utils/aiClient';
+import Markdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 interface ExamResults {
   bankId: string;
@@ -35,6 +41,43 @@ export default function Results() {
   const [showReview, setShowReview] = useState(false);
   const [leaderboard, setLeaderboard] = useState<ExamResult[]>([]);
   const [userRank, setUserRank] = useState<number | null>(null);
+  const [explanations, setExplanations] = useState<Record<number, string>>({});
+  const [loadingExplanations, setLoadingExplanations] = useState<Record<number, boolean>>({});
+
+  const handleExplain = async (qIdx: number, question: string, options: string[], correctIdx: number, studentAnsIdx: number | null) => {
+    if (loadingExplanations[qIdx]) return;
+    
+    setLoadingExplanations(prev => ({ ...prev, [qIdx]: true }));
+    try {
+      const ai = await getAI();
+      const studentAnsText = studentAnsIdx !== null ? options[studentAnsIdx] : 'Skipped';
+      const correctAnsText = options[correctIdx];
+      
+      const prompt = `
+        As a personal exam mentor, explain why the student's answer is wrong or why they might have skipped it.
+        
+        Question: ${question}
+        Options: ${options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join(', ')}
+        Student's Answer: ${studentAnsText}
+        Correct Answer: ${correctAnsText}
+        
+        Provide a concise, encouraging, and clear explanation of the concept and why the correct answer is right. 
+        Use bullet points if needed. Keep it under 100 words.
+      `;
+
+      const response = await withRetry(() => ai.models.generateContent({
+        model: 'gemini-flash-latest',
+        contents: [{ parts: [{ text: prompt }] }]
+      }));
+
+      setExplanations(prev => ({ ...prev, [qIdx]: response.text || 'No explanation available.' }));
+    } catch (error) {
+      console.error('Error getting explanation:', error);
+      setExplanations(prev => ({ ...prev, [qIdx]: 'Failed to get AI explanation. Please check your API key and try again.' }));
+    } finally {
+      setLoadingExplanations(prev => ({ ...prev, [qIdx]: false }));
+    }
+  };
 
   useEffect(() => {
     const data = localStorage.getItem('last_exam_results');
@@ -284,6 +327,45 @@ export default function Results() {
                         );
                       })}
                     </div>
+
+                    {/* AI Explanation Button */}
+                    {!isCorrect && (
+                      <div className="pt-4 border-t border-slate-50">
+                        {explanations[i] ? (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-orange-50 p-6 rounded-2xl border border-orange-100"
+                          >
+                            <div className="flex items-center gap-2 mb-3 text-orange-600 font-black text-xs uppercase tracking-widest">
+                              <Sparkles className="w-4 h-4" />
+                              AI Mentor Explanation
+                            </div>
+                            <div className="prose prose-slate prose-sm max-w-none text-slate-700 font-medium leading-relaxed">
+                              <Markdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{explanations[i]}</Markdown>
+                            </div>
+                          </motion.div>
+                        ) : (
+                          <button
+                            onClick={() => handleExplain(i, q.question, q.options, q.correct, studentAns)}
+                            disabled={loadingExplanations[i]}
+                            className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            {loadingExplanations[i] ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Analyzing Mistake...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4 text-orange-400" />
+                                Why I'm Wrong?
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

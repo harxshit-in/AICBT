@@ -87,6 +87,20 @@ export async function getNotifications(): Promise<any[]> {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function updateNotification(id: string, data: any): Promise<void> {
+  await updateDoc(doc(db, "notifications", id), data);
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await deleteDoc(doc(db, "notifications", id));
+}
+
+export async function getAnalyticsUsage(): Promise<any[]> {
+  const q = query(collection(db, "analytics_usage"), orderBy("date", "desc"), limit(100));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 export function listenToNotifications(callback: (notifications: any[]) => void) {
   const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(5));
   return onSnapshot(q, (snapshot) => {
@@ -156,4 +170,77 @@ export async function getReportedBugs(): Promise<any[]> {
   const q = query(collection(db, "bug_reports"), orderBy("createdAt", "desc"), limit(50));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function saveUserProfile(uid: string, profile: any): Promise<void> {
+  await setDoc(doc(db, "users", uid), {
+    ...profile,
+    updatedAt: Date.now()
+  }, { merge: true });
+}
+
+export async function getUserProfile(uid: string): Promise<any | null> {
+  const docRef = doc(db, "users", uid);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists() ? docSnap.data() : null;
+}
+
+export async function logFeatureUsage(feature: string, model: string, success: boolean): Promise<void> {
+  const date = new Date();
+  const dayKey = date.toISOString().split('T')[0];
+  const usageRef = doc(db, 'analytics_usage', `${dayKey}_${feature}_${model}`);
+  await setDoc(usageRef, {
+    feature,
+    model,
+    success: increment(success ? 1 : 0),
+    failure: increment(success ? 0 : 1),
+    count: increment(1),
+    date: dayKey
+  }, { merge: true });
+}
+
+export async function updateUserRole(uid: string, role: 'admin' | 'team_admin' | 'user'): Promise<void> {
+  await updateDoc(doc(db, "users", uid), {
+    role: role
+  });
+}
+
+export async function updateUserStatus(uid: string, warningLevel: number, isBlocked: boolean): Promise<void> {
+  await updateDoc(doc(db, "users", uid), {
+    warningLevel: warningLevel,
+    isBlocked: isBlocked
+  });
+}
+
+export async function getAllUsers(): Promise<any[]> {
+  const snap = await getDocs(collection(db, "users"));
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+export async function uploadCurrentAffairs(data: any): Promise<string> {
+  const docRef = await addDoc(collection(db, "current_affairs"), {
+    ...data,
+    createdAt: Date.now(),
+    approved: false
+  });
+  return docRef.id;
+}
+
+export async function getApprovedCurrentAffairs(): Promise<any[]> {
+  const q = query(collection(db, "current_affairs"), orderBy("createdAt", "desc"), limit(50));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+    .filter(item => item.approved === true);
+}
+
+export async function getAllCurrentAffairs(): Promise<any[]> {
+  const q = query(collection(db, "current_affairs"), orderBy("createdAt", "desc"), limit(100));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+}
+
+export async function updateCurrentAffairsStatus(id: string, approved: boolean): Promise<void> {
+  const docRef = doc(db, "current_affairs", id);
+  await updateDoc(docRef, { approved });
 }
