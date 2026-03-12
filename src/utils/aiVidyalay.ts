@@ -25,7 +25,7 @@ Format the output as clean Markdown.
 `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
@@ -53,7 +53,7 @@ Return a JSON array of objects. Each object must have:
 `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
@@ -129,7 +129,7 @@ Return ONLY a JSON array of objects with this structure:
 `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.2,

@@ -37,7 +37,7 @@ async function startServer() {
   // Fallback Gemini API proxy if needed (though browser-side is preferred)
   app.post("/api/gemini-proxy", async (req, res) => {
     const { contents, model, apiKey } = req.body;
-    const key = apiKey || process.env.GEMINI_API_KEY;
+    const key = apiKey;
     
     if (!key) {
       return res.status(400).json({ error: "API Key is required" });

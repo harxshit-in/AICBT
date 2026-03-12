@@ -120,11 +120,17 @@ export default function Settings() {
             </div>
 
             <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex gap-4">
-              <ShieldCheck className="w-6 h-6 text-slate-400 shrink-0" />
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Your API key is stored <strong>only in your browser's local storage</strong>. 
-                It is never sent to our servers. We value your privacy and security.
-              </p>
+              <ShieldCheck className="w-6 h-6 text-emerald-500 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs text-slate-700 font-bold">
+                  Private & Secure
+                </p>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Your API key is stored <strong>only in your browser's local storage</strong>. 
+                  It is never sent to our servers or shared with other users. 
+                  The "Quota Exceeded" error (429) is tied directly to the usage limits of the key you provided.
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -71,7 +71,7 @@ export default function AIVidyalay() {
                 return newSlides;
               });
               // Add a delay between requests to prevent 429 Too Many Requests
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              await new Promise(resolve => setTimeout(resolve, 5000));
             } catch (err) {
               console.error(`Failed to generate image for slide ${index}`, err);
             }

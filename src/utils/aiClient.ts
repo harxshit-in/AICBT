@@ -23,8 +23,8 @@ export async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, initial
                           JSON.stringify(error).includes('RESOURCE_EXHAUSTED');
       
       if (isRateLimit && i < maxRetries - 1) {
-        const delay = initialDelay * Math.pow(2, i);
-        console.warn(`Rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+        const delay = initialDelay * Math.pow(2, i) + Math.random() * 1000;
+        console.warn(`Rate limit hit. Retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }

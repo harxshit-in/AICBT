@@ -1,4 +1,4 @@
-import { Modality, Type, ThinkingLevel } from "@google/genai";
+import { Modality, Type } from "@google/genai";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
@@ -19,7 +19,6 @@ ${summaryText}
     contents: prompt,
     config: {
       temperature: 0.2,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,

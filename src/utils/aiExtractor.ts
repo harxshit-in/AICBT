@@ -1,4 +1,4 @@
-import { Type, ThinkingLevel } from "@google/genai";
+import { Type } from "@google/genai";
 import { parseQuestions } from "./parser";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
@@ -39,7 +39,6 @@ export async function extractFromPDF(file: File): Promise<Question[]> {
     ],
     config: {
       temperature: 0.1,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
   }));
 
@@ -65,7 +64,6 @@ export async function extractFromImages(images: { base64: string; mimeType: stri
     contents: [{ parts }],
     config: {
       temperature: 0.1,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
   }));
 
@@ -147,7 +145,6 @@ export async function categorizeBank(bankName: string, questions: Question[]): P
     config: {
       temperature: 0.1,
       responseMimeType: "application/json",
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
     }
   }));
 
