@@ -1,43 +1,16 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 export async function getAI(): Promise<{ ai: GoogleGenAI; systemInstruction: string }> {
-  // Priority 1: Key selected via platform dialog (process.env.API_KEY) for user-provided keys
-  let apiKey = process.env.API_KEY;
-  
-  // Priority 2: Key stored in localStorage (from previous versions of the app)
-  if (!apiKey && typeof window !== 'undefined') {
-    apiKey = localStorage.getItem('user_gemini_api_key') || undefined;
-  }
-
-  // Priority 3: Platform-provided Gemini API Key (Free tier models)
-  if (!apiKey) {
-    apiKey = process.env.GEMINI_API_KEY;
-  }
+  // STRICTLY use the user-provided key from localStorage
+  let apiKey = typeof window !== 'undefined' ? localStorage.getItem('user_gemini_api_key') : null;
   
   // Validation: Ensure it's not a placeholder or empty
   if (apiKey && (apiKey.includes('YOUR_') || apiKey.includes('...') || apiKey.length < 10)) {
-    apiKey = undefined;
+    apiKey = null;
   }
   
   if (!apiKey) {
-    // Check if we can prompt the user via platform dialog
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      const aistudio = (window as any).aistudio;
-      try {
-        const hasKey = await aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await aistudio.openSelectKey();
-          // After opening, the key should be available in process.env.API_KEY
-          apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-        }
-      } catch (e) {
-        console.warn('Platform key selection failed:', e);
-      }
-    }
-  }
-
-  if (!apiKey) {
-    throw new Error('Gemini API Key not found. Please ensure your API key is configured.');
+    throw new Error('Gemini API Key not found. Please go to Settings and provide your own API key to use AI features.');
   }
   
   const ai = new GoogleGenAI({ apiKey });
