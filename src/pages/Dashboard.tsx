@@ -64,7 +64,7 @@ export default function Dashboard() {
       `;
 
       const response = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-flash-latest',
+        model: 'gemini-3-flash-preview',
         contents: [{ parts: [{ text: prompt }] }],
         config: { responseMimeType: 'application/json', systemInstruction }
       }));

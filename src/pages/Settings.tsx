@@ -1,26 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader2, Download, GraduationCap, Save } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePWA } from '../context/PWAContext';
-import { withRetry } from '../utils/aiClient';
 import { auth, getUserProfile, saveUserProfile } from '../utils/firebase';
 
 export default function Settings() {
-  const [apiKey, setApiKey] = useState('');
-  const [status, setStatus] = useState<'idle' | 'testing' | 'valid' | 'invalid'>('idle');
-  const [error, setError] = useState('');
   const [selectedExam, setSelectedExam] = useState('');
   const [isSavingExam, setIsSavingExam] = useState(false);
   const { isInstallable, installApp } = usePWA();
 
   useEffect(() => {
-    const saved = localStorage.getItem('user_gemini_api_key');
-    if (saved) {
-      setApiKey(saved);
-      setStatus('valid');
-    }
-
     const fetchProfile = async () => {
       if (auth.currentUser) {
         const profile = await getUserProfile(auth.currentUser.uid);
@@ -31,37 +20,6 @@ export default function Settings() {
     };
     fetchProfile();
   }, []);
-
-  const testKey = async () => {
-    if (!apiKey.trim()) {
-      setError('Please enter an API Key.');
-      setStatus('invalid');
-      return;
-    }
-
-    setStatus('testing');
-    setError('');
-
-    try {
-      const genAI = new GoogleGenAI({ apiKey });
-      const response = await withRetry(() => genAI.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: 'Hello, are you working?',
-      }));
-      
-      if (response.text) {
-        localStorage.setItem('user_gemini_api_key', apiKey);
-        setStatus('valid');
-      } else {
-        throw new Error('Invalid response from Gemini API.');
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Invalid API Key. Please check and try again.');
-      setStatus('invalid');
-      localStorage.removeItem('user_gemini_api_key');
-    }
-  };
 
   const saveExam = async () => {
     if (!auth.currentUser || !selectedExam) return;
@@ -94,68 +52,38 @@ export default function Settings() {
             </div>
 
             <div className="space-y-4">
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={apiKey}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    setStatus('idle');
-                  }}
-                  className={`w-full bg-slate-50 border rounded-2xl py-4 px-5 focus:outline-none focus:ring-2 transition-all ${
-                    status === 'valid' ? 'border-emerald-200 focus:ring-emerald-500/20' : 
-                    status === 'invalid' ? 'border-red-200 focus:ring-red-500/20' : 'border-slate-200 focus:ring-orange-500/20'
-                  }`}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  <AnimatePresence mode="wait">
-                    {status === 'valid' && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                        <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                      </motion.div>
-                    )}
-                    {status === 'invalid' && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                        <AlertCircle className="w-6 h-6 text-red-500" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                If you are experiencing rate limits (429 errors) or want to use a paid model, you can provide your own Gemini API key.
+              </p>
 
               <button
-                disabled={status === 'testing'}
-                onClick={testKey}
-                className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                onClick={async () => {
+                  if (typeof window !== 'undefined' && (window as any).aistudio) {
+                    try {
+                      await (window as any).aistudio.openSelectKey();
+                      alert('API Key selected successfully! You can now continue using the app.');
+                    } catch (e) {
+                      console.error('Failed to open key selector:', e);
+                      alert('Failed to open key selector. Please try again.');
+                    }
+                  } else {
+                    alert('Platform key selector is not available in this environment.');
+                  }
+                }}
+                className="w-full bg-orange-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                {status === 'testing' ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Validating...
-                  </>
-                ) : (
-                  'Save & Test Key'
-                )}
+                Select API Key
               </button>
-
-              {error && (
-                <div className="flex items-center gap-2 text-red-500 text-sm font-medium bg-red-50 p-4 rounded-2xl">
-                  <AlertCircle className="w-4 h-4" />
-                  {error}
-                </div>
-              )}
             </div>
 
             <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex gap-4">
               <ShieldCheck className="w-6 h-6 text-emerald-500 shrink-0" />
               <div className="space-y-1">
                 <p className="text-xs text-slate-700 font-bold">
-                  Private & Secure
+                  Secure by Google
                 </p>
                 <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Your API key is stored <strong>only in your browser's local storage</strong>. 
-                  It is never sent to our servers or shared with other users. 
+                  Your API key is managed securely by the AI Studio platform.
                 </p>
               </div>
             </div>

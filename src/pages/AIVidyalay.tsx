@@ -21,16 +21,10 @@ export default function AIVidyalay() {
   const [isGenerated, setIsGenerated] = useState(false);
   const [creatingTest, setCreatingTest] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(true);
   
   const [resultText, setResultText] = useState('');
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
-
-  useEffect(() => {
-    const apiKey = localStorage.getItem('user_gemini_api_key');
-    setHasApiKey(!!apiKey);
-  }, []);
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -194,29 +188,7 @@ export default function AIVidyalay() {
       </header>
 
       {/* Input Section */}
-      {!hasApiKey ? (
-        <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-10 text-center space-y-6">
-          <div className="bg-red-100 w-20 h-20 rounded-3xl flex items-center justify-center text-red-600 mx-auto">
-            <Key className="w-10 h-10" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-red-900">API Key Required</h2>
-            <p className="text-red-700 font-medium max-w-md mx-auto">
-              To use AI Vidyalay, you need to provide a Gemini API Key. 
-              This ensures your data stays private and the service remains free.
-            </p>
-          </div>
-          <Link
-            to="/settings"
-            className="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transition-all shadow-xl shadow-red-200 active:scale-95"
-          >
-            <Settings className="w-5 h-5" />
-            Go to Settings to add API Key
-          </Link>
-        </div>
-      ) : (
-        <>
-          {!isGenerated && (
+      {!isGenerated && (
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -406,8 +378,6 @@ export default function AIVidyalay() {
           </motion.div>
         )}
       </AnimatePresence>
-      </>
-      )}
     </div>
   );
 }

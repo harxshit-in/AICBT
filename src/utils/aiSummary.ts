@@ -15,7 +15,7 @@ ${summaryText}
 `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.2,
@@ -72,7 +72,7 @@ Do not include any markdown formatting like ** or #, just plain text that is eas
 `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.3,

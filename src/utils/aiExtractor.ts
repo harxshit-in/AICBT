@@ -23,7 +23,7 @@ export async function extractFromPDF(file: File): Promise<Question[]> {
   const base64 = btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: [
       {
         parts: [
@@ -61,7 +61,7 @@ export async function extractFromImages(images: { base64: string; mimeType: stri
   ];
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: [{ parts }],
     config: {
       temperature: 0.1,
@@ -83,7 +83,7 @@ export async function scanOMR(imageBase64: string, answerKey: number[]): Promise
   `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: [
       {
         parts: [
@@ -143,7 +143,7 @@ export async function categorizeBank(bankName: string, questions: Question[]): P
   `;
 
   const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-3-flash-preview",
     contents: [{ parts: [{ text: prompt }] }],
     config: {
       temperature: 0.1,

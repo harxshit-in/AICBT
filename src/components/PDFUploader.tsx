@@ -30,12 +30,6 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
   const processPDF = async () => {
     if (!file) return;
 
-    const apiKey = localStorage.getItem('user_gemini_api_key');
-    if (!apiKey) {
-      setError('Please set your Gemini API Key in Settings first.');
-      return;
-    }
-
     try {
       setStatus('processing');
       setProgress(0);

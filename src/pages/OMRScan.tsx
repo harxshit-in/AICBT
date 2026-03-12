@@ -30,12 +30,6 @@ export default function OMRScan() {
   const processOMR = async () => {
     if (!file || !selectedBankId) return;
 
-    const apiKey = localStorage.getItem('user_gemini_api_key');
-    if (!apiKey) {
-      setError('Please set your Gemini API Key in Settings first.');
-      return;
-    }
-
     const bank = banks.find(b => b.bankId === selectedBankId);
     if (!bank) return;
 
