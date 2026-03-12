@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { listenToNotifications } from '../utils/firebase';
+import { listenToNotifications, auth, getUserProfile } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { getAllBanks, QuestionBank } from '../utils/storage';
 import BugReportDialog from './BugReportDialog';
 
@@ -18,6 +19,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [recentBanks, setRecentBanks] = useState<QuestionBank[]>([]);
   const [showBugReport, setShowBugReport] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const profile = await getUserProfile(user.uid);
+        setUserRole(profile?.role || 'user');
+      } else {
+        setUserRole(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -187,6 +201,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         </Link>
                       );
                     })}
+
+                    {/* Admin items removed from sidebar per user request */}
 
                     <button
                       onClick={() => {

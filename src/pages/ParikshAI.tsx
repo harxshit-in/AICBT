@@ -68,6 +68,7 @@ interface CoachingSettings {
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f43f5e', '#eab308'];
 
 export default function ParikshAI() {
+  const navigate = useNavigate();
   const [exams, setExams] = useState<ParikshAIExam[]>([]);
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -484,6 +485,29 @@ export default function ParikshAI() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20">
+      {/* Mode Switcher */}
+      <div className="flex justify-center">
+        <div className="mt-6 bg-slate-100 p-1 rounded-full inline-flex items-center border border-slate-200 overflow-x-auto max-w-full no-scrollbar">
+          <button 
+            onClick={() => navigate('/')}
+            className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
+          >
+            Normal Mode
+          </button>
+          <button 
+            className="px-6 py-2 rounded-full text-sm font-bold bg-white text-slate-900 shadow-sm whitespace-nowrap"
+          >
+            ParikshAI Mode
+          </button>
+          <button 
+            onClick={() => navigate('/daily-news')}
+            className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
+          >
+            Current Affairs
+          </button>
+        </div>
+      </div>
+
       <ErrorDialog 
         isOpen={showErrorDialog} 
         error={error} 

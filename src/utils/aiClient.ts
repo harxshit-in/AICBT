@@ -1,15 +1,42 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 export async function getAI(): Promise<{ ai: GoogleGenAI; systemInstruction: string }> {
-  const apiKey = localStorage.getItem('user_gemini_api_key');
-  console.log("getAI: apiKey retrieved:", apiKey ? "present" : "missing");
-  if (!apiKey) throw new Error('Gemini API Key not found in settings. Please configure it first.');
+  // Priority 1: Key stored in localStorage (User's manually saved key in Settings)
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('user_gemini_api_key') : null;
+  
+  // Priority 2: Key selected via platform dialog (process.env.API_KEY)
+  const platformDialogKey = process.env.API_KEY;
+  
+  let apiKey = localKey || platformDialogKey;
+  
+  // Validation: Ensure it's not a placeholder or empty
+  if (apiKey && (apiKey.includes('YOUR_') || apiKey.includes('...') || apiKey.length < 10)) {
+    apiKey = null;
+  }
+  
+  if (!apiKey) {
+    // Check if we can prompt the user via platform dialog
+    if (typeof window !== 'undefined' && (window as any).aistudio) {
+      const aistudio = (window as any).aistudio;
+      try {
+        const hasKey = await aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+          await aistudio.openSelectKey();
+          // After opening, the key should be available in process.env.API_KEY
+          apiKey = process.env.API_KEY;
+        }
+      } catch (e) {
+        console.warn('Platform key selection failed:', e);
+      }
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error('Gemini API Key not found. Please go to Settings and provide your own API key to use AI features.');
+  }
   
   const ai = new GoogleGenAI({ apiKey });
-  console.log("getAI: GoogleGenAI initialized");
-  
-  // Simplified system instruction to rule out auth/profile issues
-  const systemInstruction = "You are a helpful assistant.";
+  const systemInstruction = "You are a helpful assistant for SSC, Railways, and Banking exam preparation. You provide accurate, educational, and encouraging responses.";
   
   return { ai, systemInstruction };
 }

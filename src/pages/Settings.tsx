@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader2, Download } from 'lucide-react';
+import { Key, CheckCircle2, AlertCircle, ExternalLink, Info, ShieldCheck, Loader2, Download, GraduationCap, Save } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePWA } from '../context/PWAContext';
 import { withRetry } from '../utils/aiClient';
+import { auth, getUserProfile, saveUserProfile } from '../utils/firebase';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'testing' | 'valid' | 'invalid'>('idle');
   const [error, setError] = useState('');
+  const [selectedExam, setSelectedExam] = useState('');
+  const [isSavingExam, setIsSavingExam] = useState(false);
   const { isInstallable, installApp } = usePWA();
 
   useEffect(() => {
@@ -17,6 +20,16 @@ export default function Settings() {
       setApiKey(saved);
       setStatus('valid');
     }
+
+    const fetchProfile = async () => {
+      if (auth.currentUser) {
+        const profile = await getUserProfile(auth.currentUser.uid);
+        if (profile?.exam) {
+          setSelectedExam(profile.exam);
+        }
+      }
+    };
+    fetchProfile();
   }, []);
 
   const testKey = async () => {
@@ -50,6 +63,20 @@ export default function Settings() {
     }
   };
 
+  const saveExam = async () => {
+    if (!auth.currentUser || !selectedExam) return;
+    setIsSavingExam(true);
+    try {
+      await saveUserProfile(auth.currentUser.uid, { exam: selectedExam });
+      alert('Exam preference updated!');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save exam preference.');
+    } finally {
+      setIsSavingExam(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-2">
@@ -59,6 +86,7 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
+          {/* API Key Section */}
           <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
             <div className="flex items-center gap-3 text-slate-800 font-bold mb-2">
               <Key className="w-5 h-5 text-orange-500" />
@@ -128,9 +156,39 @@ export default function Settings() {
                 <p className="text-[10px] text-slate-500 leading-relaxed">
                   Your API key is stored <strong>only in your browser's local storage</strong>. 
                   It is never sent to our servers or shared with other users. 
-                  The "Quota Exceeded" error (429) is tied directly to the usage limits of the key you provided.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Exam Preference Section */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
+            <div className="flex items-center gap-3 text-slate-800 font-bold mb-2">
+              <GraduationCap className="w-5 h-5 text-blue-500" />
+              Target Exam
+            </div>
+            <div className="space-y-4">
+              <select 
+                value={selectedExam}
+                onChange={(e) => setSelectedExam(e.target.value)}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+              >
+                <option value="">Select Exam</option>
+                <option value="SSC CGL">SSC CGL</option>
+                <option value="SSC CHSL">SSC CHSL</option>
+                <option value="SSC CPO">SSC CPO</option>
+                <option value="RRB NTPC">RRB NTPC</option>
+                <option value="RRB Group D">RRB Group D</option>
+                <option value="RRB ALP Technical">RRB ALP Technical</option>
+              </select>
+              <button
+                onClick={saveExam}
+                disabled={isSavingExam || !selectedExam}
+                className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                {isSavingExam ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                Save Exam Preference
+              </button>
             </div>
           </div>
         </div>

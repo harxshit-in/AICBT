@@ -1,17 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Newspaper, Loader2, Calendar, Share2, Download, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Newspaper, Loader2, Calendar, Share2, Download, ChevronRight, ChevronLeft, BookOpen, Search, Filter } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getApprovedCurrentAffairs } from '../utils/firebase';
+import { getApprovedCurrentAffairs, getAllCurrentAffairs } from '../utils/firebase';
 import { getAI } from '../utils/aiClient';
 import { useNavigate } from 'react-router-dom';
 import { saveBank, generateBankId, QuestionBank } from '../utils/storage';
 
 export default function DailyNews() {
   const [news, setNews] = useState<any[]>([]);
+  const [selectedNews, setSelectedNews] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [readDays, setReadDays] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('All');
   const navigate = useNavigate();
+
+  const filteredNews = useMemo(() => {
+    return news.filter(item => {
+      if (!item) return false;
+      const title = item.title || '';
+      const subtitle = item.subtitle || '';
+      const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           subtitle.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = filterType === 'All' || item.caType === filterType;
+      return matchesSearch && matchesFilter;
+    });
+  }, [news, searchQuery, filterType]);
 
   useEffect(() => {
     fetchNews();
@@ -30,8 +45,12 @@ export default function DailyNews() {
   const fetchNews = async () => {
     setIsLoading(true);
     try {
-      const data = await getApprovedCurrentAffairs();
+      // Fetch all current affairs so uploaded items show immediately
+      const data = await getAllCurrentAffairs();
       setNews(data);
+      if (data.length > 0) {
+        setSelectedNews(data[0]);
+      }
     } catch (error) {
       console.error('News Error:', error);
     } finally {
@@ -39,12 +58,13 @@ export default function DailyNews() {
     }
   };
 
-  const generateQuiz = async () => {
-    if (news.length === 0) return;
+  const generateQuiz = async (item?: any) => {
+    const sourceNews = item || selectedNews || news[0];
+    if (!sourceNews) return;
     setIsGeneratingQuiz(true);
     try {
       const { ai, systemInstruction } = await getAI();
-      const prompt = `Based on these current affairs, generate 5 MCQs for an exam. Return ONLY JSON: [ { "question": "...", "options": ["...", "...", "...", "..."], "correct": 0 } ]. News: ${JSON.stringify(news.slice(0, 5))}`;
+      const prompt = `Based on this news, generate 5 MCQs for an exam. Return ONLY JSON: [ { "question": "...", "options": ["...", "...", "...", "..."], "correct": 0 } ]. News: ${JSON.stringify(sourceNews)}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
@@ -53,7 +73,7 @@ export default function DailyNews() {
       const questions = JSON.parse(response.text || '[]');
       const bank: QuestionBank = {
         bankId: generateBankId(`Quiz_${Date.now()}`),
-        name: `Current Affairs Quiz - ${new Date().toLocaleDateString()}`,
+        name: `Quiz: ${sourceNews.title}`,
         questions,
         createdAt: Date.now(),
         sourceFile: 'AI Generated',
@@ -70,50 +90,308 @@ export default function DailyNews() {
     }
   };
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-black text-slate-900">Current Affairs</h1>
-            <div className="flex gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-bold"><Share2 className="w-4 h-4" /> Share</button>
-              <button className="flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-bold"><Download className="w-4 h-4" /> Download</button>
-            </div>
-          </div>
+  const handleShare = async () => {
+    if (!selectedNews) return;
+    const shareData = {
+      title: selectedNews.title,
+      text: `${selectedNews.title}\n\n${selectedNews.subtitle || ''}\n\nRead more on AI CBT!`,
+      url: window.location.href,
+    };
 
-          {isLoading ? (
-            <div className="flex justify-center p-12"><Loader2 className="w-10 h-10 animate-spin text-orange-500" /></div>
-          ) : (
-            <div className="space-y-4">
-              {news.map(item => (
-                <div key={item.id} className="bg-white p-6 rounded-2xl border flex gap-4 items-start hover:border-blue-200 transition-colors">
-                  <div className="bg-slate-100 p-4 rounded-xl"><Newspaper className="w-8 h-8 text-slate-600" /></div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg text-slate-900 mb-1">{item.title}</h3>
-                    <p className="text-slate-500 text-sm">{item.highlights?.[0]}</p>
-                  </div>
-                </div>
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.url}`);
+        alert('Link copied to clipboard!');
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!selectedNews) return;
+    
+    const content = `
+${selectedNews.title.toUpperCase()}
+${selectedNews.subtitle || ''}
+--------------------------------------------------
+
+KEY HIGHLIGHTS:
+${(selectedNews.highlights || []).map((h: string) => `• ${h}`).join('\n')}
+
+DETAILED INSIGHTS:
+${(selectedNews.insights || []).map((ins: string) => `• ${ins}`).join('\n')}
+
+KEY CONCEPTS:
+${(selectedNews.concepts || []).map((c: string) => `• ${c}`).join('\n')}
+
+--------------------------------------------------
+Generated by AI CBT Platform
+    `.trim();
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedNews.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Mode Switcher */}
+      <div className="flex justify-center">
+        <div className="mt-6 bg-slate-100 p-1 rounded-full inline-flex items-center border border-slate-200 overflow-x-auto max-w-full no-scrollbar">
+          <button 
+            onClick={() => navigate('/')}
+            className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
+          >
+            Normal Mode
+          </button>
+          <button 
+            onClick={() => navigate('/parikshai')}
+            className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
+          >
+            ParikshAI Mode
+          </button>
+          <button 
+            className="px-6 py-2 rounded-full text-sm font-bold bg-white text-slate-900 shadow-sm whitespace-nowrap"
+          >
+            Current Affairs
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Sidebar: News List */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="flex flex-col gap-4 mb-2">
+            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Newspaper className="w-5 h-5 text-orange-500" />
+              Recent News
+            </h2>
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Search news..." 
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm outline-none focus:border-orange-300 transition-all"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+              {['All', 'Daily CA', 'Weekly CA', 'Monthly CA'].map(type => (
+                <button 
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filterType === type ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                >
+                  {type}
+                </button>
               ))}
             </div>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border">
-            <h3 className="font-bold text-lg mb-4">Reading Streak</h3>
-            <div className="w-full bg-slate-100 rounded-full h-4 mb-2">
-              <div className="bg-blue-600 h-4 rounded-full" style={{ width: `${Math.min(readDays * 3.33, 100)}%` }}></div>
-            </div>
-            <p className="text-sm text-slate-600">{readDays} days of current affairs read</p>
           </div>
           
-          <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-            <h3 className="font-bold text-lg mb-2">Test Your Knowledge</h3>
-            <button onClick={generateQuiz} disabled={isGeneratingQuiz} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-              {isGeneratingQuiz ? <Loader2 className="animate-spin w-5 h-5" /> : <><BookOpen className="w-5 h-5" /> Practice Now</>}
-            </button>
+          {isLoading ? (
+            <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>
+          ) : (
+            <div className="space-y-3 max-h-[calc(100vh-350px)] overflow-y-auto pr-2 custom-scrollbar">
+              {filteredNews.map(item => (
+                <button 
+                  key={item.id} 
+                  onClick={() => setSelectedNews(item)}
+                  className={`w-full text-left p-4 rounded-2xl border transition-all ${selectedNews?.id === item.id ? 'bg-orange-50 border-orange-200 shadow-sm' : 'bg-white border-slate-100 hover:border-slate-300'}`}
+                >
+                  <div className="flex gap-3">
+                    <div className={`p-2 rounded-xl h-fit ${selectedNews?.id === item.id ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      <Newspaper className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-bold text-slate-900 text-sm line-clamp-2">{item.title}</h3>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{item.caType || 'Daily CA'}</p>
+                        <p className="text-[10px] text-slate-400 font-bold">{new Date(item.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+              {filteredNews.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  <p className="text-xs font-bold">No news matches your search</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              Reading Streak
+            </h3>
+            <div className="w-full bg-slate-100 rounded-full h-3 mb-3">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(readDays * 3.33, 100)}%` }}
+                className="bg-blue-500 h-3 rounded-full" 
+              />
+            </div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{readDays} Days Streak</p>
           </div>
+        </div>
+
+        {/* Main Content: Detailed View */}
+        <div className="lg:col-span-8">
+          {selectedNews ? (
+            <motion.div 
+              key={selectedNews.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden"
+            >
+              <div className="p-8 md:p-12 space-y-8">
+                {/* Tags */}
+                <div className="flex flex-wrap gap-2">
+                  {(selectedNews.tags || ['General']).map((tag: string) => (
+                    <span key={tag} className="px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-purple-100">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Title & Subtitle */}
+                <div className="space-y-4">
+                  <h1 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
+                    {selectedNews.title}
+                  </h1>
+                  {selectedNews.subtitle && (
+                    <p className="text-lg text-slate-500 font-medium leading-relaxed">
+                      {selectedNews.subtitle}
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <button 
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    <Download className="w-4 h-4" /> Download
+                  </button>
+                  <button 
+                    onClick={handleShare}
+                    className="flex items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                  >
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                </div>
+
+                {/* Practice Box */}
+                <div className="bg-blue-50 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 border border-blue-100">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm">
+                      <BookOpen className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-900">Attempt MCQs</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex -space-x-2">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                              <img src={`https://picsum.photos/seed/user${i}/50/50`} alt="user" referrerPolicy="no-referrer" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => generateQuiz(selectedNews)}
+                    disabled={isGeneratingQuiz}
+                    className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-xl font-black hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingQuiz ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Practice Now'}
+                  </button>
+                </div>
+
+                {/* Content Sections */}
+                <div className="space-y-10 pt-4">
+                  {/* Highlights */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
+                      Key Highlights:
+                    </h3>
+                    <ul className="space-y-3">
+                      {(selectedNews.highlights || []).map((h: string, i: number) => (
+                        <li key={i} className="flex gap-3 text-slate-600 font-medium leading-relaxed">
+                          <span className="text-orange-500 mt-1.5">•</span>
+                          {h}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Insights */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                      Detailed Insights:
+                    </h3>
+                    <ul className="space-y-3">
+                      {(selectedNews.insights || []).map((ins: string, i: number) => (
+                        <li key={i} className="flex gap-3 text-slate-600 font-medium leading-relaxed">
+                          <span className="text-blue-500 mt-1.5">•</span>
+                          {ins}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Concepts */}
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                      Key Concepts Involved:
+                    </h3>
+                    <ul className="space-y-3">
+                      {(selectedNews.concepts || []).map((c: string, i: number) => {
+                        const [term, ...def] = c.split(':');
+                        return (
+                          <li key={i} className="flex gap-3 text-slate-600 font-medium leading-relaxed">
+                            <span className="text-emerald-500 mt-1.5">•</span>
+                            <div>
+                              <span className="font-black text-slate-900">{term}:</span>
+                              {def.join(':')}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-12 bg-slate-50 rounded-[2.5rem] border border-dashed border-slate-200">
+              <Newspaper className="w-16 h-16 text-slate-200 mb-4" />
+              <h3 className="text-xl font-black text-slate-400">Select a news item to read</h3>
+            </div>
+          )}
         </div>
       </div>
     </div>

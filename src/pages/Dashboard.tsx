@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Sparkles, FileText, HelpCircle, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, X, Flame, Trophy, Target, ChevronRight, Newspaper, Loader2, BookOpen, Clock } from 'lucide-react';
+import { Plus, Sparkles, FileText, HelpCircle, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, X, Flame, Trophy, Target, ChevronRight, Newspaper, Loader2, BookOpen, Clock, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getUserStats, UserStats, saveBank, generateBankId, QuestionBank, getAllBanks } from '../utils/storage';
 import { getAI, withRetry } from '../utils/aiClient';
+import { auth, getUserProfile } from '../utils/firebase';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,10 +12,26 @@ export default function Dashboard() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isGeneratingChallenge, setIsGeneratingChallenge] = useState(false);
   const [banks, setBanks] = useState<QuestionBank[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     getUserStats().then(setStats);
     getAllBanks().then(setBanks);
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const profile = await getUserProfile(user.uid);
+        setUserProfile(profile);
+      }
+    };
+    fetchProfile();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) fetchProfile();
+    });
+    return unsubscribe;
   }, []);
 
   const recentTests = banks.filter(b => b.category !== 'Daily Challenge').slice(0, 3);
@@ -77,17 +94,23 @@ export default function Dashboard() {
     <div className="flex flex-col min-h-[calc(100vh-80px)] items-center relative max-w-4xl mx-auto px-4 pb-32">
       
       {/* Mode Switcher */}
-      <div className="mt-6 bg-slate-100 p-1 rounded-full inline-flex items-center border border-slate-200">
+      <div className="mt-6 bg-slate-100 p-1 rounded-full inline-flex items-center border border-slate-200 overflow-x-auto max-w-full no-scrollbar">
         <button 
-          className="px-6 py-2 rounded-full text-sm font-bold bg-white text-slate-900 shadow-sm"
+          className="px-6 py-2 rounded-full text-sm font-bold bg-white text-slate-900 shadow-sm whitespace-nowrap"
         >
           Normal Mode
         </button>
         <button 
           onClick={() => navigate('/parikshai')}
-          className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors"
+          className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
         >
           ParikshAI Mode
+        </button>
+        <button 
+          onClick={() => navigate('/daily-news')}
+          className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
+        >
+          Current Affairs
         </button>
       </div>
 
@@ -136,6 +159,31 @@ export default function Dashboard() {
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subjects</div>
             </div>
           </div>
+        </motion.div>
+      )}
+
+      {/* Exam Selection Alert */}
+      {userProfile && !userProfile.exam && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full mt-8 bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6"
+        >
+          <div className="flex items-center gap-4">
+            <div className="bg-white p-3 rounded-2xl shadow-sm">
+              <AlertCircle className="w-6 h-6 text-rose-500" />
+            </div>
+            <div>
+              <h4 className="font-black text-slate-900">No Exam Selected</h4>
+              <p className="text-sm text-slate-500 font-medium">Please select your target exam in settings to get personalized recommendations.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate('/settings')}
+            className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 whitespace-nowrap"
+          >
+            Select Exam
+          </button>
         </motion.div>
       )}
 
