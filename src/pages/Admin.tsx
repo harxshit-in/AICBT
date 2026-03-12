@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage } from '../utils/firebase';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile } from '../utils/firebase';
+import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
 import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [banks, setBanks] = useState<QuestionBank[]>([]);
@@ -28,19 +28,30 @@ export default function Admin() {
   const [usageStats, setUsageStats] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (currentUser) {
-        fetchBanks();
-        fetchAnalytics();
-        fetchBugsAndErrors();
-        fetchNews();
-        fetchUsage();
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        navigate('/');
+        return;
       }
+      
+      setUser(currentUser);
+      const profile = await getUserProfile(currentUser.uid);
+      setRole(profile?.role || 'user');
+      
+      if (profile?.role !== 'admin') {
+        navigate('/');
+        return;
+      }
+
+      fetchBanks();
+      fetchAnalytics();
+      fetchBugsAndErrors();
+      fetchNews();
+      fetchUsage();
+      setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const fetchUsage = async () => {
     try {
@@ -97,16 +108,6 @@ export default function Admin() {
       setBanks(data);
     } catch (err) {
       console.error("Failed to fetch banks", err);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
-      setError(err.message);
     }
   };
 
@@ -198,45 +199,6 @@ export default function Admin() {
   };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
-
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto mt-20 p-8 bg-white rounded-3xl shadow-sm border border-slate-100">
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center">
-            <Shield className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-black text-slate-900">Admin Login</h1>
-        </div>
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-medium">{error}</div>}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-slate-400"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-slate-400"
-              required
-            />
-          </div>
-          <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-colors">
-            Login
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-8">
