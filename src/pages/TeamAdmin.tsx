@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Check, X, FileUp, Bell, Trash2, Edit, Loader2, LogOut } from 'lucide-react';
-import { getAllCurrentAffairs, updateCurrentAffairsStatus, getNotifications, deleteNotification, uploadCurrentAffairs, updateUserRole, updateUserStatus, getAllUsers, auth, getUserProfile } from '../utils/firebase';
+import { getAllCurrentAffairs, updateCurrentAffairsStatus, getNotifications, deleteNotification, uploadCurrentAffairs, updateUserRole, updateUserStatus, getAllUsers, auth, getUserProfile, saveUserProfile } from '../utils/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { getAI } from '../utils/aiClient';
@@ -102,11 +102,23 @@ export default function TeamAdmin() {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await saveUserProfile(userCredential.user.uid, {
+          email: email,
+          role: 'user',
+          createdAt: Date.now(),
+          isBlocked: false,
+          warningLevel: 0
+        });
+        alert('Account created successfully!');
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Authentication failed');
+      if (e.code === 'auth/invalid-credential') {
+        alert('Invalid email or password.');
+      } else {
+        alert('Authentication failed: ' + e.message);
+      }
     }
   };
 
