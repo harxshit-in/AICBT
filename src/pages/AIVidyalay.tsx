@@ -183,6 +183,14 @@ export default function AIVidyalay() {
         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-medium">
           Your personal AI tutor. Enter a topic, select your exam, and get a comprehensive study guide with the latest exam questions.
         </p>
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 max-w-2xl mx-auto flex gap-3 items-start text-left">
+          <BrainCircuit className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 leading-relaxed">
+            <strong>Pro Tip:</strong> AI Vidyalay uses Google Search grounding to find the latest exam data. 
+            Free Gemini API keys have a daily limit for search. If you hit this limit, the app will automatically 
+            fallback to its internal knowledge base so you can keep learning!
+          </p>
+        </div>
       </header>
 
       {/* Input Section */}

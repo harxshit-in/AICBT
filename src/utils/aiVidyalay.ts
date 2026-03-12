@@ -24,16 +24,31 @@ Include:
 Format the output as clean Markdown.
 `;
 
-  const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.2,
+  try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        temperature: 0.2,
+      }
+    }), 2, 3000); // 2 retries with search, 3s initial delay
+    return response.text || "Failed to generate content.";
+  } catch (error: any) {
+    // If search fails with 429, retry WITHOUT search
+    if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
+      console.warn("Search quota hit, retrying without search...");
+      const response = await withRetry(() => ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt.replace("Using Google Search to find the absolute latest data, ", ""),
+        config: {
+          temperature: 0.2,
+        }
+      }));
+      return (response.text || "") + "\n\n*(Note: Latest search data unavailable due to API quota limits. Using internal knowledge base.)*";
     }
-  }));
-
-  return response.text || "Failed to generate content.";
+    throw error;
+  }
 }
 
 export async function generateVidyalaySlides(topic: string, exam: string): Promise<SlideData[]> {
@@ -52,34 +67,46 @@ Return a JSON array of objects. Each object must have:
 - "imagePrompt": A detailed prompt to generate an educational infographic or visual note for this slide. IMPORTANT: Image generation models often misspell words, especially in Hindi/Hinglish. To fix this, you MUST provide EXACT, SHORT phrases enclosed in quotes for the model to render. Use simple Hinglish (Hindi in English alphabet). Keep the text extremely brief (maximum 2-4 words per text element) to ensure 100% correct spelling. Example: "An educational infographic. Include a bold title with the exact text 'Regulating Act'. Include a label with the exact text 'Supreme Court'."
 `;
 
-  const response = await withRetry(() => ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }],
-      temperature: 0.2,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            content: { type: Type.STRING },
-            imagePrompt: { type: Type.STRING },
-          },
-          required: ["title", "content", "imagePrompt"]
-        }
+  const config: any = {
+    temperature: 0.2,
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          content: { type: Type.STRING },
+          imagePrompt: { type: Type.STRING },
+        },
+        required: ["title", "content", "imagePrompt"]
       }
     }
-  }));
+  };
 
   try {
+    const response = await withRetry(() => ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        ...config,
+        tools: [{ googleSearch: {} }],
+      }
+    }), 2, 3000);
     const jsonStr = response.text?.trim() || "[]";
     return JSON.parse(jsonStr) as SlideData[];
-  } catch (e) {
-    console.error("Failed to parse slides JSON", e);
-    return [];
+  } catch (error: any) {
+    if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
+      console.warn("Search quota hit for slides, retrying without search...");
+      const response = await withRetry(() => ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt.replace("Using Google Search, ", ""),
+        config
+      }));
+      const jsonStr = response.text?.trim() || "[]";
+      return JSON.parse(jsonStr) as SlideData[];
+    }
+    throw error;
   }
 }
 
