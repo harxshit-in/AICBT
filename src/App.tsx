@@ -21,7 +21,7 @@ import FloatingChat from './components/FloatingChat';
 import DailyNews from './pages/DailyNews';
 import OnboardingDialog from './components/OnboardingDialog';
 import { PWAProvider } from './context/PWAContext';
-import { logAnalyticsEvent } from './utils/firebase';
+import { logAnalyticsEvent, auth, getUserProfile } from './utils/firebase';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
@@ -35,6 +35,16 @@ export default function App() {
       logAnalyticsEvent('visits');
       sessionStorage.setItem('visited', 'true');
     }
+
+    const checkProfile = async () => {
+      if (auth.currentUser) {
+        const profile = await getUserProfile(auth.currentUser.uid);
+        if (!profile) {
+          setShowOnboarding(true);
+        }
+      }
+    };
+    checkProfile();
   }, []);
 
   const handleStart = () => {

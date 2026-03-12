@@ -171,7 +171,7 @@ export default function ParikshAI() {
       }
 
       setProcessingStatus('Analyzing questions with Gemini AI...');
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       
       const prompt = `
         You are an expert educational data extractor.
@@ -203,6 +203,7 @@ export default function ParikshAI() {
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
+          systemInstruction,
           responseSchema: {
             type: Type.ARRAY,
             items: {
@@ -282,7 +283,7 @@ export default function ParikshAI() {
     setProcessingStatus('Generating AI Trend Analysis & Study Strategy...');
     
     try {
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       
       const allQuestions = exam.papers.flatMap(p => p.questions);
       
@@ -308,6 +309,7 @@ export default function ParikshAI() {
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
+          systemInstruction,
           responseSchema: {
             type: Type.OBJECT,
             properties: {

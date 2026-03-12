@@ -49,7 +49,7 @@ export default function Results() {
     
     setLoadingExplanations(prev => ({ ...prev, [qIdx]: true }));
     try {
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       const studentAnsText = studentAnsIdx !== null ? options[studentAnsIdx] : 'Skipped';
       const correctAnsText = options[correctIdx];
       
@@ -67,7 +67,8 @@ export default function Results() {
 
       const response = await withRetry(() => ai.models.generateContent({
         model: 'gemini-flash-latest',
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{ parts: [{ text: prompt }] }],
+        config: { systemInstruction }
       }));
 
       setExplanations(prev => ({ ...prev, [qIdx]: response.text || 'No explanation available.' }));

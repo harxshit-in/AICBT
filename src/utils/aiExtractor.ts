@@ -18,7 +18,7 @@ Rules:
 `;
 
 export async function extractFromPDF(file: File): Promise<Question[]> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   const buf = await file.arrayBuffer();
   const base64 = btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
@@ -39,6 +39,7 @@ export async function extractFromPDF(file: File): Promise<Question[]> {
     ],
     config: {
       temperature: 0.1,
+      systemInstruction
     }
   }));
 
@@ -46,7 +47,7 @@ export async function extractFromPDF(file: File): Promise<Question[]> {
 }
 
 export async function extractFromImages(images: { base64: string; mimeType: string }[]): Promise<Question[]> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   
   // We might need to chunk images if there are too many, but for now let's try all
   const parts = [
@@ -64,6 +65,7 @@ export async function extractFromImages(images: { base64: string; mimeType: stri
     contents: [{ parts }],
     config: {
       temperature: 0.1,
+      systemInstruction
     }
   }));
 
@@ -71,7 +73,7 @@ export async function extractFromImages(images: { base64: string; mimeType: stri
 }
 
 export async function scanOMR(imageBase64: string, answerKey: number[]): Promise<any> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   const prompt = `
     This is a photo of an OMR answer sheet. 
     Please read the marked bubbles for each question number.
@@ -97,7 +99,8 @@ export async function scanOMR(imageBase64: string, answerKey: number[]): Promise
     ],
     config: {
       temperature: 0.1,
-      responseMimeType: "application/json"
+      responseMimeType: "application/json",
+      systemInstruction
     }
   }));
 
@@ -126,7 +129,7 @@ export async function scanOMR(imageBase64: string, answerKey: number[]): Promise
 }
 
 export async function categorizeBank(bankName: string, questions: Question[]): Promise<{ category: string; tags: string[] }> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   const sampleQuestions = questions.slice(0, 5).map(q => q.question).join('\n');
   const prompt = `
     Analyze this exam paper titled "${bankName}" and its sample questions:
@@ -145,6 +148,7 @@ export async function categorizeBank(bankName: string, questions: Question[]): P
     config: {
       temperature: 0.1,
       responseMimeType: "application/json",
+      systemInstruction
     }
   }));
 

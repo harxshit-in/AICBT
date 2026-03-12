@@ -30,7 +30,7 @@ export default function Dashboard() {
       
       const subject = weakestSubject ? weakestSubject[0] : 'General Knowledge';
       
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       const prompt = `
         Generate 10 high-quality multiple-choice questions for the subject: ${subject}.
         These are for SSC and Railway exams.
@@ -49,7 +49,7 @@ export default function Dashboard() {
       const response = await withRetry(() => ai.models.generateContent({
         model: 'gemini-flash-latest',
         contents: [{ parts: [{ text: prompt }] }],
-        config: { responseMimeType: 'application/json' }
+        config: { responseMimeType: 'application/json', systemInstruction }
       }));
 
       const questions = JSON.parse(response.text || '[]');

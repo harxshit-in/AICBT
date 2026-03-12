@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Check, X, FileUp, Bell, Trash2, Edit, Loader2, LogOut } from 'lucide-react';
-import { getAllCurrentAffairs, updateCurrentAffairsStatus, getNotifications, deleteNotification, uploadCurrentAffairs, updateUserRole, getAllUsers, auth, getUserProfile } from '../utils/firebase';
+import { getAllCurrentAffairs, updateCurrentAffairsStatus, getNotifications, deleteNotification, uploadCurrentAffairs, updateUserRole, updateUserStatus, getAllUsers, auth, getUserProfile } from '../utils/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import * as pdfjsLib from 'pdfjs-dist';
 import { getAI } from '../utils/aiClient';
@@ -67,7 +67,7 @@ export default function TeamAdmin() {
         text += content.items.map((item: any) => item.str).join(' ');
       }
       
-      const ai = await getAI();
+      const { ai } = await getAI();
       const prompt = `Extract current affairs from this text and format as JSON: { "title": "...", "highlights": ["..."], "insights": ["..."], "concepts": ["..."] }. Text: ${text}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

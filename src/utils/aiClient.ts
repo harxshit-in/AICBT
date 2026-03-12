@@ -1,9 +1,24 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { auth, getUserProfile } from "./firebase";
 
-export async function getAI() {
+export async function getAI(): Promise<{ ai: GoogleGenAI; systemInstruction: string }> {
   const apiKey = localStorage.getItem('user_gemini_api_key');
   if (!apiKey) throw new Error('Gemini API Key not found in settings. Please configure it first.');
-  return new GoogleGenAI({ apiKey });
+  
+  const ai = new GoogleGenAI({ apiKey });
+  
+  let systemInstruction = "You are a helpful assistant.";
+  if (auth.currentUser) {
+    const profile = await getUserProfile(auth.currentUser.uid);
+    if (profile) {
+      systemInstruction = `You are a helpful assistant. The user's name is ${profile.name}. They are preparing for the ${profile.exam} exam, it is their ${profile.attempt}, and they are at the ${profile.level} level. Tailor your responses to their profile.`;
+    }
+  }
+  
+  // Note: Since we cannot pass systemInstruction directly to GoogleGenAI constructor,
+  // we will have to pass it in the config of each generateContent call.
+  // This function will return the AI instance and the system instruction.
+  return { ai, systemInstruction };
 }
 
 /**

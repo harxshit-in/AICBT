@@ -1,4 +1,4 @@
-import { Type } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
@@ -10,7 +10,9 @@ export interface SlideData {
 }
 
 export async function generateVidyalayText(topic: string, exam: string): Promise<string> {
-  const ai = await getAI();
+  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
+  const ai = result.ai;
+  const systemInstruction = result.systemInstruction;
   const prompt = `
 You are an expert AI tutor for the ${exam} exam.
 The student wants to study the topic: "${topic}".
@@ -25,26 +27,28 @@ Format the output as clean Markdown.
 `;
 
   try {
-    const response = await withRetry(() => ai.models.generateContent({
+    const response = (await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.2,
+        systemInstruction
       }
-    }), 2, 3000); // 2 retries with search, 3s initial delay
+    }), 2, 3000)) as GenerateContentResponse; // 2 retries with search, 3s initial delay
     return response.text || "Failed to generate content.";
   } catch (error: any) {
     // If search fails with 429, retry WITHOUT search
     if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
       console.warn("Search quota hit, retrying without search...");
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = (await withRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt.replace("Using Google Search to find the absolute latest data, ", ""),
         config: {
           temperature: 0.2,
+          systemInstruction
         }
-      }));
+      }), 2, 3000)) as GenerateContentResponse;
       return (response.text || "") + "\n\n*(Note: Latest search data unavailable due to API quota limits. Using internal knowledge base.)*";
     }
     throw error;
@@ -52,7 +56,9 @@ Format the output as clean Markdown.
 }
 
 export async function generateVidyalaySlides(topic: string, exam: string): Promise<SlideData[]> {
-  const ai = await getAI();
+  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
+  const ai = result.ai;
+  const systemInstruction = result.systemInstruction;
   const prompt = `
 You are an expert AI tutor for the ${exam} exam.
 The student wants to study the topic: "${topic}".
@@ -70,6 +76,7 @@ Return a JSON array of objects. Each object must have:
   const config: any = {
     temperature: 0.2,
     responseMimeType: "application/json",
+    systemInstruction,
     responseSchema: {
       type: Type.ARRAY,
       items: {
@@ -85,24 +92,24 @@ Return a JSON array of objects. Each object must have:
   };
 
   try {
-    const response = await withRetry(() => ai.models.generateContent({
+    const response = (await withRetry(() => ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         ...config,
         tools: [{ googleSearch: {} }],
       }
-    }), 2, 3000);
+    }), 2, 3000)) as GenerateContentResponse;
     const jsonStr = response.text?.trim() || "[]";
     return JSON.parse(jsonStr) as SlideData[];
   } catch (error: any) {
     if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
       console.warn("Search quota hit for slides, retrying without search...");
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = (await withRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt.replace("Using Google Search, ", ""),
         config
-      }));
+      }), 2, 3000)) as GenerateContentResponse;
       const jsonStr = response.text?.trim() || "[]";
       return JSON.parse(jsonStr) as SlideData[];
     }
@@ -111,10 +118,12 @@ Return a JSON array of objects. Each object must have:
 }
 
 export async function generateSlideImage(imagePrompt: string): Promise<string> {
-  const ai = await getAI();
+  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
+  const ai = result.ai;
+  const systemInstruction = result.systemInstruction;
   
   try {
-    const response = await withRetry(() => ai.models.generateContent({
+    const response = (await withRetry(() => ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -126,9 +135,10 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
       config: {
         imageConfig: {
           aspectRatio: "16:9"
-        }
+        },
+        systemInstruction
       },
-    }));
+    }))) as GenerateContentResponse;
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
@@ -144,7 +154,9 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
 }
 
 export async function generateVidyalayTest(topic: string, exam: string): Promise<Question[]> {
-  const ai = await getAI();
+  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
+  const ai = result.ai;
+  const systemInstruction = result.systemInstruction;
   const prompt = `
 You are an expert examiner for the ${exam} exam.
 Generate 10 high-quality multiple-choice questions (MCQs) on the topic: "${topic}".
@@ -155,12 +167,13 @@ Return ONLY a JSON array of objects with this structure:
 (where correct is the 0-based index of the correct option).
 `;
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = (await withRetry(() => ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
       temperature: 0.2,
       responseMimeType: "application/json",
+      systemInstruction,
       responseSchema: {
         type: Type.ARRAY,
         items: {
@@ -178,7 +191,7 @@ Return ONLY a JSON array of objects with this structure:
         }
       }
     }
-  }));
+  }))) as GenerateContentResponse;
 
   try {
     const jsonStr = response.text?.trim() || "[]";

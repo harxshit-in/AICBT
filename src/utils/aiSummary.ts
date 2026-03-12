@@ -3,7 +3,7 @@ import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
 export async function generateTestFromSummary(summaryText: string, topic: string, language: string): Promise<Question[]> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   
   const prompt = `
 Generate 5 multiple-choice questions based on the following summary text about "${topic}".
@@ -20,6 +20,7 @@ ${summaryText}
     config: {
       temperature: 0.2,
       responseMimeType: "application/json",
+      systemInstruction,
       responseSchema: {
         type: Type.ARRAY,
         items: {
@@ -53,7 +54,7 @@ ${summaryText}
 }
 
 export async function generateSummaryText(topic: string, exam: string, language: string): Promise<string> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   
   let langInstruction = "English";
   if (language === 'hindi') langInstruction = "Hindi (using Devanagari script)";
@@ -75,6 +76,7 @@ Do not include any markdown formatting like ** or #, just plain text that is eas
     contents: prompt,
     config: {
       temperature: 0.3,
+      systemInstruction
     }
   }));
 
@@ -129,7 +131,7 @@ function createWavDataUrl(base64Pcm: string, sampleRate: number = 24000): string
 }
 
 export async function generateSummaryAudio(text: string, language: string): Promise<string> {
-  const ai = await getAI();
+  const { ai, systemInstruction } = await getAI();
   
   // For Hindi/Hinglish, we might want a specific voice, but 'Kore' or 'Puck' works generally.
   // We will use 'Kore' as default.
@@ -145,6 +147,7 @@ export async function generateSummaryAudio(text: string, language: string): Prom
               prebuiltVoiceConfig: { voiceName: 'Kore' },
             },
         },
+        systemInstruction
       },
     }));
 

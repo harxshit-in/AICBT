@@ -31,7 +31,7 @@ export default function FloatingChat() {
     setIsLoading(true);
 
     try {
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       const prompt = `
         You are a helpful AI Study Mentor for students preparing for SSC (Staff Selection Commission) and Railway exams in India.
         Provide concise, accurate, and encouraging answers. Use bullet points for clarity.
@@ -42,7 +42,8 @@ export default function FloatingChat() {
 
       const response = await withRetry(() => ai.models.generateContent({
         model: 'gemini-flash-latest',
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{ parts: [{ text: prompt }] }],
+        config: { systemInstruction }
       }));
 
       setMessages(prev => [...prev, { role: 'ai', content: response.text || "I'm sorry, I couldn't process that." }]);

@@ -43,12 +43,12 @@ export default function DailyNews() {
     if (news.length === 0) return;
     setIsGeneratingQuiz(true);
     try {
-      const ai = await getAI();
+      const { ai, systemInstruction } = await getAI();
       const prompt = `Based on these current affairs, generate 5 MCQs for an exam. Return ONLY JSON: [ { "question": "...", "options": ["...", "...", "...", "..."], "correct": 0 } ]. News: ${JSON.stringify(news.slice(0, 5))}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { responseMimeType: 'application/json' }
+        config: { responseMimeType: 'application/json', systemInstruction }
       });
       const questions = JSON.parse(response.text || '[]');
       const bank: QuestionBank = {
