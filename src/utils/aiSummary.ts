@@ -1,9 +1,9 @@
-import { GoogleGenAI, GenerateContentResponse, Modality, Type } from "@google/genai";
+import { Modality, Type } from "@google/genai";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
 export async function generateTestFromSummary(summaryText: string, topic: string, language: string): Promise<Question[]> {
-  const { ai, systemInstruction } = await getAI();
+  const { generateContent } = await getAI();
   
   const prompt = `
 Generate 5 multiple-choice questions based on the following summary text about "${topic}".
@@ -14,13 +14,13 @@ Summary Text:
 ${summaryText}
 `;
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await withRetry(() => generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
+    feature: "AI_SUMMARY",
     config: {
       temperature: 0.2,
       responseMimeType: "application/json",
-      systemInstruction,
       responseSchema: {
         type: Type.ARRAY,
         items: {
@@ -54,7 +54,7 @@ ${summaryText}
 }
 
 export async function generateSummaryText(topic: string, exam: string, language: string): Promise<string> {
-  const { ai, systemInstruction } = await getAI();
+  const { generateContent } = await getAI();
   
   let langInstruction = "English";
   if (language === 'hindi') langInstruction = "Hindi (using Devanagari script)";
@@ -71,12 +71,12 @@ The output MUST be entirely in ${langInstruction}.
 Do not include any markdown formatting like ** or #, just plain text that is easy to read aloud.
 `;
 
-  const response = await withRetry(() => ai.models.generateContent({
+  const response = await withRetry(() => generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
+    feature: "AI_SUMMARY",
     config: {
       temperature: 0.3,
-      systemInstruction
     }
   }));
 
@@ -131,12 +131,13 @@ function createWavDataUrl(base64Pcm: string, sampleRate: number = 24000): string
 }
 
 export async function generateSummaryAudio(text: string, language: string): Promise<string> {
-  const { ai, systemInstruction } = await getAI();
+  const { generateContent } = await getAI();
   
   try {
-    const response = (await withRetry(() => ai.models.generateContent({
+    const response = await withRetry(() => generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [{ parts: [{ text }] }],
+      feature: "AI_SUMMARY",
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -145,7 +146,7 @@ export async function generateSummaryAudio(text: string, language: string): Prom
             },
         },
       },
-    }))) as GenerateContentResponse;
+    }));
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (base64Audio) {

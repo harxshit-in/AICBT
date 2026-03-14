@@ -31,7 +31,7 @@ export default function FloatingChat() {
     setIsLoading(true);
 
     try {
-      const { ai, systemInstruction } = await getAI();
+      const { generateContent } = await getAI();
       const prompt = `
         You are a helpful AI Study Mentor for students preparing for SSC (Staff Selection Commission) and Railway exams in India.
         Provide concise, accurate, and encouraging answers. Use bullet points for clarity.
@@ -40,16 +40,16 @@ export default function FloatingChat() {
         User Question: ${userMsg}
       `;
 
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: prompt }] }],
-        config: { systemInstruction }
+        contents: prompt,
+        feature: 'AI_MENTOR'
       }));
 
       setMessages(prev => [...prev, { role: 'ai', content: response.text || "I'm sorry, I couldn't process that." }]);
     } catch (error) {
       console.error('Chat Error:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: "I'm having trouble connecting. Please check your API key in settings." }]);
+      setMessages(prev => [...prev, { role: 'ai', content: "I'm having trouble connecting. Please check your credits in settings." }]);
     } finally {
       setIsLoading(false);
     }

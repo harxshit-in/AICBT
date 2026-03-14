@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Globe, Users, Play, Calendar, FileText, ChevronRight, Star, TrendingUp, Loader2, Medal, Target, Zap, X, Timer, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getAllBanks, QuestionBank, getResultsForBank, ExamResult, saveBank } from '../utils/storage';
-import { getPublicBanks, getSharedBank } from '../utils/firebase';
+import { getPublicBanks, getSharedBank, auth, getUserProfile, onAuthStateChanged } from '../utils/firebase';
 import { isProfane } from '../utils/profanityFilter';
 
 interface SharedTest {
@@ -24,7 +24,6 @@ interface SharedTest {
 export default function Explore() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [showNameModal, setShowNameModal] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const [publicBanks, setPublicBanks] = useState<SharedTest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +33,24 @@ export default function Explore() {
   const [showOverview, setShowOverview] = useState<SharedTest | null>(null);
   const [isStartingTest, setIsStartingTest] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        console.log("User logged in, fetching profile for:", user.uid);
+        const profile = await getUserProfile(user.uid);
+        console.log("Profile fetched:", profile);
+        if (profile && profile.name) {
+          setUserName(profile.name);
+          console.log("userName set to from profile:", profile.name);
+        } else if (user.displayName) {
+          setUserName(user.displayName);
+          console.log("userName set to from auth:", user.displayName);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     loadPublicBanks().then((banks) => {
@@ -90,14 +107,22 @@ export default function Explore() {
   });
 
   const handleStartTest = async (testId: string | null) => {
-    if (!userName.trim() || !testId) return;
+    if (!auth.currentUser) {
+      alert("Please log in to attempt the test.");
+      navigate('/login');
+      return;
+    }
     
-    if (isProfane(userName)) {
+    const nameToUse = userName.trim() || auth.currentUser?.displayName || "Anonymous";
+    
+    if (!nameToUse || !testId) return;
+    
+    if (isProfane(nameToUse)) {
       alert("Please enter an appropriate name.");
       return;
     }
 
-    localStorage.setItem('candidate_name', userName);
+    localStorage.setItem('candidate_name', nameToUse);
     setIsStartingTest(true);
 
     // Check if it's in local storage
@@ -233,7 +258,9 @@ export default function Explore() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               className="group bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all cursor-pointer relative overflow-hidden"
-              onClick={() => setShowNameModal(test.id)}
+              onClick={() => {
+                handleStartTest(test.id);
+              }}
             >
               <div className="flex justify-between items-start mb-6">
                 <div className="bg-slate-50 p-4 rounded-2xl text-slate-400 group-hover:bg-orange-500 group-hover:text-white transition-all duration-500">
@@ -308,7 +335,7 @@ export default function Explore() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowOverview(test);
+                    handleStartTest(test.id);
                   }}
                   className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-500 transition-all flex items-center gap-2"
                 >
@@ -433,74 +460,12 @@ export default function Explore() {
                     onClick={() => {
                       const testId = showOverview.id;
                       setShowOverview(null);
-                      setShowNameModal(testId);
+                      handleStartTest(testId);
                     }}
                     className="flex-[2] bg-orange-500 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     Proceed to Start
                     <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Name Entry Modal */}
-      <AnimatePresence>
-        {showNameModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-2 bg-orange-500" />
-              
-              <div className="text-center space-y-4 mb-8">
-                <div className="bg-orange-50 w-20 h-20 rounded-[2rem] flex items-center justify-center text-orange-500 mx-auto mb-6">
-                  <Users className="w-10 h-10" />
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ready to Start?</h2>
-                <p className="text-slate-500">Please enter your name to begin the exam session. Your results will be recorded under this name.</p>
-              </div>
-
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Candidate Name</label>
-                  <input
-                    autoFocus
-                    type="text"
-                    placeholder="e.g. Harshit Singh"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleStartTest(showNameModal)}
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 focus:outline-none focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500 transition-all font-bold text-lg"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowNameModal(null)}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    disabled={!userName.trim() || isStartingTest}
-                    onClick={() => handleStartTest(showNameModal)}
-                    className="flex-[2] bg-orange-500 text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-orange-100 hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    {isStartingTest ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        Start Exam
-                        <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
                   </button>
                 </div>
               </div>
@@ -580,8 +545,9 @@ export default function Explore() {
               <div className="mt-8">
                 <button
                   onClick={() => {
+                    const testId = showLeaderboard!;
                     setShowLeaderboard(null);
-                    setShowNameModal(showLeaderboard);
+                    handleStartTest(testId);
                   }}
                   className="w-full bg-slate-900 text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-2"
                 >

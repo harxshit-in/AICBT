@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Sparkles, FileText, HelpCircle, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, X, Flame, Trophy, Target, ChevronRight, Newspaper, Loader2, BookOpen, Clock, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { getUserStats, UserStats, saveBank, generateBankId, QuestionBank, getAllBanks } from '../utils/storage';
-import { getAI, withRetry } from '../utils/aiClient';
+import { Sparkles, FileText, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, Flame, Trophy, Target, ChevronRight, BookOpen, Clock, Download, Search, CheckCircle2, ScanLine, LayoutGrid, Medal, Users } from 'lucide-react';
+import { motion } from 'motion/react';
+import { getUserStats, UserStats, QuestionBank, getAllBanks } from '../utils/storage';
 import { auth, getUserProfile } from '../utils/firebase';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [showOptions, setShowOptions] = useState(false);
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [isGeneratingChallenge, setIsGeneratingChallenge] = useState(false);
   const [banks, setBanks] = useState<QuestionBank[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     getUserStats().then(setStats);
@@ -34,461 +32,254 @@ export default function Dashboard() {
     return unsubscribe;
   }, []);
 
-  const recentTests = banks.filter(b => b.category !== 'Daily Challenge').slice(0, 3);
-  const scannedPDFs = banks.filter(b => b.sourceFile !== 'AI Generated').slice(0, 3);
+  const totalCorrect = stats ? Object.values(stats.subjectMastery).reduce((acc, curr) => acc + curr.correct, 0) : 0;
+  const accuracy = stats && stats.totalQuestionsSolved > 0 
+    ? Math.round((totalCorrect / stats.totalQuestionsSolved) * 100) 
+    : 0;
 
-  const handleDailyChallenge = async () => {
-    if (!stats || isGeneratingChallenge) return;
-    
-    setIsGeneratingChallenge(true);
-    try {
-      const weakestSubject = Object.entries(stats.subjectMastery)
-        .sort(([, a], [, b]) => (a.correct / a.total) - (b.correct / b.total))[0];
-      
-      const subject = weakestSubject ? weakestSubject[0] : 'General Knowledge';
-      
-      const { ai, systemInstruction } = await getAI();
-      const prompt = `
-        Generate 10 high-quality multiple-choice questions for the subject: ${subject}.
-        These are for SSC and Railway exams.
-        
-        Return ONLY a JSON array of objects with this structure:
-        [
-          {
-            "question": "...",
-            "options": ["...", "...", "...", "..."],
-            "correct": 0,
-            "section": "${subject}"
-          }
-        ]
-      `;
-
-      const response = await withRetry(() => ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: prompt }] }],
-        config: { responseMimeType: 'application/json', systemInstruction }
-      }));
-
-      const questions = JSON.parse(response.text || '[]');
-      const bank: QuestionBank = {
-        bankId: generateBankId(`Daily_Challenge_${Date.now()}`),
-        name: `Daily Challenge: ${subject}`,
-        questions,
-        createdAt: Date.now(),
-        sourceFile: 'AI Generated',
-        timeLimit: 10,
-        category: 'Daily Challenge',
-        tags: ['Adaptive', 'Challenge', subject]
-      };
-
-      const id = await saveBank(bank);
-      navigate(`/exam-overview/${id}`);
-    } catch (error) {
-      console.error('Challenge Generation Error:', error);
-    } finally {
-      setIsGeneratingChallenge(false);
-    }
-  };
+  const daysOfWeek = ['S', 'M', 'T', 'W', 'Th', 'F', 'S'];
+  const currentDay = new Date().getDay();
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-80px)] items-center relative max-w-4xl mx-auto px-4 pb-32">
+    <div className="flex flex-col lg:flex-row gap-6 pb-32 lg:pb-8 max-w-[1400px] mx-auto">
       
-      {/* Mode Switcher */}
-      <div className="mt-6 bg-slate-100 p-1 rounded-full inline-flex items-center border border-slate-200 overflow-x-auto max-w-full no-scrollbar">
-        <button 
-          className="px-6 py-2 rounded-full text-sm font-bold bg-white text-slate-900 shadow-sm whitespace-nowrap"
-        >
-          Normal Mode
-        </button>
-        <button 
-          onClick={() => navigate('/parikshai')}
-          className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
-        >
-          ParikshAI Mode
-        </button>
-        <button 
-          onClick={() => navigate('/daily-news')}
-          className="px-6 py-2 rounded-full text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors whitespace-nowrap"
-        >
-          Current Affairs
-        </button>
-      </div>
-
-      {/* User Stats Bar */}
-      {stats && (
+      {/* Main Content Area (Left) */}
+      <div className="flex-1 space-y-8">
+        
+        {/* Hero Banner */}
         <motion.div 
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4"
+          className="bg-white border border-slate-200 rounded-2xl p-8 relative overflow-hidden shadow-sm"
         >
-          <div className="bg-white border border-slate-100 p-4 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="bg-orange-50 p-2.5 rounded-2xl">
-              <Flame className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900">{stats.streak}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Day Streak</div>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-100 p-4 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="bg-blue-50 p-2.5 rounded-2xl">
-              <Trophy className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900">{stats.totalXP}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total XP</div>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-100 p-4 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="bg-emerald-50 p-2.5 rounded-2xl">
-              <Target className="w-6 h-6 text-emerald-500" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900">{stats.totalQuestionsSolved}</div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Solved</div>
-            </div>
-          </div>
-          <div className="bg-white border border-slate-100 p-4 rounded-3xl shadow-sm flex items-center gap-4">
-            <div className="bg-purple-50 p-2.5 rounded-2xl">
-              <Sparkles className="w-6 h-6 text-purple-500" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900">
-                {Object.keys(stats.subjectMastery).length}
-              </div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subjects</div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Exam Selection Alert */}
-      {userProfile && !userProfile.exam && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full mt-8 bg-rose-50 border border-rose-100 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6"
-        >
-          <div className="flex items-center gap-4">
-            <div className="bg-white p-3 rounded-2xl shadow-sm">
-              <AlertCircle className="w-6 h-6 text-rose-500" />
-            </div>
-            <div>
-              <h4 className="font-black text-slate-900">No Exam Selected</h4>
-              <p className="text-sm text-slate-500 font-medium">Please select your target exam in settings to get personalized recommendations.</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => navigate('/settings')}
-            className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 whitespace-nowrap"
-          >
-            Select Exam
-          </button>
-        </motion.div>
-      )}
-
-      {/* Subject Mastery Dashboard */}
-      {stats && Object.keys(stats.subjectMastery).length > 0 && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="w-full mt-12 space-y-8"
-        >
-          {/* Recommended Study Path */}
-          {(() => {
-            const weakestSubject = Object.entries(stats.subjectMastery)
-              .sort(([, a], [, b]) => (a.correct / a.total) - (b.correct / b.total))[0];
+          <div className="relative z-10">
+            <h1 className="text-3xl font-medium text-slate-900 mb-6 tracking-tight">
+              Hi, {userProfile?.name?.split(' ')[0] || 'Student'}
+            </h1>
             
-            if (!weakestSubject) return null;
-            const [subject, data] = weakestSubject;
-            const percentage = Math.round((data.correct / data.total) * 100);
+            <div className="relative max-w-3xl flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-inner">
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Ask any doubt"
+                className="flex-1 pl-4 pr-4 py-3 text-slate-700 placeholder-slate-400 bg-transparent focus:outline-none text-base"
+              />
+              <button 
+                onClick={() => navigate('/ai-vidyalay')}
+                className="bg-slate-900 hover:bg-slate-800 text-white p-3 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
 
-            return (
-              <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-10 text-white relative overflow-hidden shadow-2xl shadow-slate-200">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[80px] -mr-32 -mt-32" />
-                <div className="relative z-10 space-y-6">
-                  <div className="flex items-center gap-3 text-orange-400 font-black text-xs uppercase tracking-[0.2em]">
-                    <Sparkles className="w-4 h-4" />
-                    Recommended Next Step
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-3xl font-black">Focus on <span className="text-orange-500">{subject}</span></h3>
-                    <p className="text-slate-400 font-medium max-w-xl">
-                      Your current mastery is <span className="text-white font-bold">{percentage}%</span>. 
-                      We recommend practicing 15-20 more questions in this area to strengthen your foundation.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => navigate('/upload')}
-                    className="inline-flex items-center gap-2 bg-orange-500 text-white px-8 py-4 rounded-2xl font-black hover:bg-orange-600 transition-all active:scale-95 shadow-xl shadow-orange-500/20"
-                  >
-                    Start Practice Session
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                </div>
+        {/* Previous Year Questions */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4"
+        >
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Featured Exams</h2>
+            <p className="text-sm text-slate-500 mt-1">Practice PYQs to master exam patterns</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button 
+              onClick={() => navigate('/explore?category=Railway')}
+              className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-2xl hover:border-orange-300 hover:shadow-md transition-all text-left"
+            >
+              <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                <img src="https://i.ibb.co/KjjhR10j/image.png" alt="Railway Logo" className="w-8 h-8 object-contain" referrerPolicy="no-referrer" />
               </div>
-            );
-          })()}
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-900">Railway</h3>
+                <p className="text-xs text-slate-500">All GS PYQs from 2011-2025</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
+            </button>
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-orange-500" />
-              Subject Mastery
-            </h2>
-            <button className="text-xs font-bold text-orange-500 flex items-center gap-1 hover:underline">
-              View Detailed Report <ChevronRight className="w-4 h-4" />
+            <button 
+              onClick={() => navigate('/explore?category=SSC')}
+              className="flex items-center gap-4 p-5 bg-white border border-slate-200 rounded-2xl hover:border-teal-300 hover:shadow-md transition-all text-left"
+            >
+              <div className="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center shrink-0">
+                <img src="https://i.ibb.co/0jkVHZmx/image.png" alt="SSC Logo" className="w-12 h-12 object-contain" referrerPolicy="no-referrer" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-slate-900">SSC</h3>
+                <p className="text-xs text-slate-500">All model answers from 2011-2024</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400" />
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {Object.entries(stats.subjectMastery).map(([subject, data]) => {
-              const percentage = Math.round((data.correct / data.total) * 100) || 0;
+        </motion.div>
+
+        {/* View AI CBT Community Banner */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden cursor-pointer hover:shadow-md transition-all"
+          onClick={() => navigate('/explore')}
+        >
+          <div className="absolute right-0 top-0 bottom-0 w-64 bg-gradient-to-l from-orange-100/50 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-6 z-10">
+            <div className="w-20 h-20 bg-white rounded-xl p-2 shadow-sm border border-orange-100 flex items-center justify-center">
+              <Users className="w-10 h-10 text-orange-500" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-orange-900 mb-1">View AI CBT Community</h3>
+              <p className="text-orange-700 text-sm">see whats others are doing</p>
+            </div>
+          </div>
+          <div className="z-10 shrink-0">
+            <button className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2">
+              Explore Now <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Core Features */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-4"
+        >
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Core Features</h2>
+            <p className="text-sm text-slate-500 mt-1">Enhance your preparation with our AI-powered tools</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button 
+              onClick={() => navigate('/upload')}
+              className="flex items-center justify-between p-6 bg-white border-2 border-orange-200 rounded-3xl hover:bg-orange-50 hover:border-orange-500 hover:shadow-2xl hover:shadow-orange-200/50 transition-all group text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full border border-orange-100 flex items-center justify-center bg-orange-50 shrink-0">
+                  <FileText className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 text-base">PDF to CBT</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Generate tests from any PDF</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-800 transition-colors shrink-0" />
+            </button>
+
+            <button 
+              onClick={() => navigate('/parikshai')}
+              className="flex items-center justify-between p-6 bg-white border-2 border-teal-200 rounded-3xl hover:bg-teal-50 hover:border-teal-500 hover:shadow-2xl hover:shadow-teal-200/50 transition-all group text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full border border-teal-100 flex items-center justify-center bg-teal-50 shrink-0">
+                  <BrainCircuit className="w-6 h-6 text-teal-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-800 text-base">ParikshAI</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Advanced AI paper analysis</p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-800 transition-colors shrink-0" />
+            </button>
+          </div>
+        </motion.div>
+
+      </div>
+
+      {/* Right Sidebar */}
+      <div className="w-full lg:w-[320px] space-y-6 shrink-0">
+        
+        {/* Today's Activity */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-slate-800">Today's Activity</h3>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-[#f8f9fa] rounded-xl p-4 text-center flex flex-col items-center justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <LayoutGrid className="w-4 h-4 text-orange-500" />
+                <span className="text-xl font-bold text-slate-800">{stats?.totalQuestionsSolved || 0}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">MCQ Practiced</div>
+            </div>
+            
+            <div className="bg-[#f8f9fa] rounded-xl p-4 text-center flex flex-col items-center justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="w-4 h-4 text-blue-500" />
+                <span className="text-xl font-bold text-slate-800">{accuracy > 0 ? `${accuracy}%` : '—'}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">Accuracy</div>
+            </div>
+            
+            <div className="bg-[#f8f9fa] rounded-xl p-4 text-center flex flex-col items-center justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <BookOpen className="w-4 h-4 text-emerald-500" />
+                <span className="text-xl font-bold text-slate-800">{stats ? Object.keys(stats.subjectMastery).length : 0}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">Mains Answers</div>
+            </div>
+            
+            <div className="bg-[#f8f9fa] rounded-xl p-4 text-center flex flex-col items-center justify-center">
+              <div className="flex items-center gap-2 mb-1">
+                <Medal className="w-4 h-4 text-amber-500" />
+                <span className="text-xl font-bold text-slate-800">{stats?.totalXP > 0 ? stats.totalXP : '—'}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium">Your Rank</div>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => navigate('/leaderboard')}
+            className="w-full py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+          >
+            View Leaderboard <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Streak */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-1">
+              {stats?.streak || 0}-day streak
+            </h3>
+            <ChevronRight className="w-4 h-4 text-slate-400" />
+          </div>
+          <p className="text-xs text-slate-500 mb-5">Learn or practice to mark today's streak</p>
+          
+          <div className="flex justify-between items-center">
+            {daysOfWeek.map((day, index) => {
+              const isToday = index === currentDay;
+              const isPast = index < currentDay;
+              const hasStreak = isPast || (isToday && (stats?.streak || 0) > 0);
+              
               return (
-                <div key={subject} className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-800">{subject}</span>
-                    <span className="text-xs font-black text-slate-400">{percentage}% Mastered</span>
-                  </div>
-                  <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${percentage}%` }}
-                      className={`h-full ${percentage > 70 ? 'bg-emerald-500' : percentage > 40 ? 'bg-orange-500' : 'bg-rose-500'}`}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <span>{data.correct} Correct</span>
-                    <span>{data.total} Total</span>
+                <div key={index} className="flex flex-col items-center gap-2">
+                  <span className={`text-[11px] font-medium ${isToday ? 'text-orange-500' : 'text-slate-400'}`}>
+                    {day}
+                  </span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                    hasStreak ? 'bg-orange-50' : 'bg-slate-50'
+                  }`}>
+                    {hasStreak ? (
+                      <Flame className="w-4 h-4 text-orange-400" fill="currentColor" />
+                    ) : (
+                      <Flame className="w-4 h-4 text-slate-200" />
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </motion.div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full space-y-12 mt-8">
-        
-        {/* Hero / Greeting */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-6"
-        >
-          <div className="inline-flex items-center justify-center p-4 bg-orange-50 rounded-3xl mb-2">
-            <Sparkles className="w-10 h-10 text-orange-500" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-            How can I help you <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-rose-500">prepare today?</span>
-          </h1>
-        </motion.div>
-
-        {/* Daily Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-2xl">
-          <button 
-            onClick={handleDailyChallenge}
-            disabled={isGeneratingChallenge}
-            className="flex flex-col gap-4 p-6 bg-slate-900 text-white rounded-[2.5rem] hover:bg-slate-800 transition-all text-left group relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-            <div className="bg-white/10 w-12 h-12 rounded-2xl flex items-center justify-center">
-              {isGeneratingChallenge ? <Loader2 className="w-6 h-6 animate-spin text-orange-500" /> : <Target className="w-6 h-6 text-orange-500" />}
-            </div>
-            <div>
-              <h3 className="text-xl font-black">Daily Challenge</h3>
-              <p className="text-slate-400 text-sm font-medium">Adaptive 10-min test based on your weak areas.</p>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => navigate('/daily-news')}
-            className="flex flex-col gap-4 p-6 bg-white border border-slate-200 rounded-[2.5rem] hover:border-orange-300 hover:shadow-xl hover:shadow-orange-500/5 transition-all text-left group"
-          >
-            <div className="bg-orange-50 w-12 h-12 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors">
-              <Newspaper className="w-6 h-6 text-orange-500 group-hover:text-white transition-colors" />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-slate-900">Current Affairs</h3>
-              <p className="text-slate-500 text-sm font-medium">Daily news summary & quick quiz for SSC/Railways.</p>
-            </div>
-          </button>
         </div>
-
-        {/* Features Grid */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl mt-8"
-        >
-          {[
-            { name: 'ParikshAI', icon: BrainCircuit, path: '/parikshai', color: 'text-blue-500', bg: 'bg-blue-50' },
-            { name: 'AI Summary', icon: AlignLeft, path: '/ai-summary', color: 'text-purple-500', bg: 'bg-purple-50' },
-            { name: 'AI Vidyalay', icon: GraduationCap, path: '/ai-vidyalay', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { name: 'How it works', icon: HelpCircle, path: '/about', color: 'text-slate-500', bg: 'bg-slate-50' },
-          ].map((feature, i) => (
-            <motion.button
-              key={feature.name}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate(feature.path)}
-              className="flex flex-col items-center gap-3 p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-all group"
-            >
-              <div className={`p-4 rounded-2xl ${feature.bg} group-hover:scale-110 transition-transform`}>
-                <feature.icon className={`w-8 h-8 ${feature.color}`} />
-              </div>
-              <span className="font-bold text-slate-800 text-sm">{feature.name}</span>
-            </motion.button>
-          ))}
-        </motion.div>
-
-        {/* Recent Tests & Scanned PDFs */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-3xl mt-12"
-        >
-          {/* Recent Tests */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-orange-500" />
-              Recent Tests
-            </h3>
-            <div className="space-y-3">
-              {recentTests.map((bank, i) => (
-                <motion.button 
-                  key={bank.bankId}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  onClick={() => navigate(`/exam-overview/${bank.bankId}`)}
-                  className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-orange-300 hover:shadow-md transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-slate-50 p-2 rounded-xl text-slate-600 group-hover:text-orange-500">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <span className="font-bold text-slate-800 text-sm">{bank.name}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </motion.button>
-              ))}
-              {recentTests.length === 0 && <p className="text-sm text-slate-400 font-medium italic">No recent tests found.</p>}
-            </div>
-          </div>
-
-          {/* Scanned PDFs */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-500" />
-              Scanned PDFs
-            </h3>
-            <div className="space-y-3">
-              {scannedPDFs.map((bank, i) => (
-                <motion.button 
-                  key={bank.bankId}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  onClick={() => navigate(`/exam-overview/${bank.bankId}`)}
-                  className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all text-left group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-slate-50 p-2 rounded-xl text-slate-600 group-hover:text-blue-500">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <span className="font-bold text-slate-800 text-sm">{bank.sourceFile}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                </motion.button>
-              ))}
-              {scannedPDFs.length === 0 && <p className="text-sm text-slate-400 font-medium italic">No scanned PDFs found.</p>}
-            </div>
-          </div>
-        </motion.div>
 
       </div>
-
-      {/* Bottom Floating Input Bar & Menu */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="fixed bottom-6 left-0 right-0 px-4 flex flex-col items-center pointer-events-none z-50"
-      >
-        <AnimatePresence>
-          {showOptions && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="w-full max-w-3xl bg-white border border-slate-200 shadow-2xl rounded-3xl p-2 mb-4 pointer-events-auto overflow-hidden"
-            >
-              <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-slate-100 mb-2">
-                <span className="font-bold text-slate-800">Select Action</span>
-                <button onClick={() => setShowOptions(false)} className="p-1 hover:bg-slate-100 rounded-full text-slate-500">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">
-                <button onClick={() => navigate('/upload')} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-orange-50 text-left group transition-colors">
-                  <div className="bg-orange-100 p-2 rounded-xl text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Generate CBT Exam</div>
-                    <div className="text-xs text-slate-500">Create a test from PDF</div>
-                  </div>
-                </button>
-                <button onClick={() => navigate('/parikshai')} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-blue-50 text-left group transition-colors">
-                  <div className="bg-blue-100 p-2 rounded-xl text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                    <BrainCircuit className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Add to ParikshAI</div>
-                    <div className="text-xs text-slate-500">Advanced AI analysis</div>
-                  </div>
-                </button>
-                <button onClick={() => navigate('/ai-summary')} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-purple-50 text-left group transition-colors">
-                  <div className="bg-purple-100 p-2 rounded-xl text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                    <AlignLeft className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800 flex items-center gap-2">AI Summary</div>
-                    <div className="text-xs text-slate-500">Summarize documents</div>
-                  </div>
-                </button>
-                <button onClick={() => navigate('/ai-vidyalay')} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 text-left group transition-colors">
-                  <div className="bg-slate-200 p-2 rounded-xl text-slate-600">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800 flex items-center gap-2">AI Vidyalay</div>
-                    <div className="text-xs text-slate-500">Virtual AI tutor</div>
-                  </div>
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div 
-          onClick={() => setShowOptions(!showOptions)}
-          className="w-full max-w-3xl bg-white border border-orange-200 shadow-[0_8px_30px_rgb(0,0,0,0.08)] rounded-[2.5rem] p-2 pl-4 pr-2 flex items-center gap-4 cursor-pointer pointer-events-auto hover:border-orange-400 hover:shadow-[0_8px_30px_rgba(249,115,22,0.15)] transition-all group"
-        >
-          <div className="bg-orange-100 p-3 rounded-full transition-colors">
-            <Plus className="w-6 h-6 text-orange-600" />
-          </div>
-          <div className="flex-1 text-slate-600 text-lg font-medium transition-colors">
-            Upload your PDF to get analysis...
-          </div>
-          <div className="bg-orange-500 p-3 rounded-full hover:bg-orange-600 transition-colors shadow-md">
-            <ArrowRight className="w-6 h-6 text-white" />
-          </div>
-        </div>
-      </motion.div>
     </div>
   );
 }

@@ -1,0 +1,105 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - email: string (required)
+    //   - name: string (required)
+    //   - photoURL: string (optional)
+    //   - createdAt: number (required)
+    //   - updatedAt: number (optional)
+    //   - role: string (optional, 'admin', 'team_admin', 'user')
+    //   - warningLevel: number (optional)
+    //   - isBlocked: boolean (optional)
+    //
+    // Collection: shared_tests
+    // Document ID: {testId}
+    // Fields:
+    //   - name: string (required)
+    //   - author: string (required)
+    //   - authorImage: string (optional)
+    //   - questions: list (required)
+    //   - createdAt: number (required)
+    //   - approved: boolean (required)
+    //   - isPublic: boolean (required)
+    //   - category: string (optional)
+    //   - tags: list (optional)
+    //   - negativeMarking: number (optional)
+    //   - timeLimit: number (optional)
+    //   - attempts: number (optional)
+    //   - rating: number (optional)
+    //
+    // Collection: leaderboard
+    // Document ID: {weekId}_{uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - totalXP: number (required)
+    //   - accuracy: number (required)
+    //   - weekId: string (required)
+    //   - updatedAt: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+       return request.auth != null;
+    }
+
+    function isOwner(userId) {
+       return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "victus.harshit1609@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && hasOnlyAllowedFields(['email', 'name', 'photoURL', 'createdAt']);
+      allow update: if isOwner(userId) && hasOnlyAllowedFields(['email', 'name', 'photoURL', 'createdAt', 'updatedAt', 'role', 'warningLevel', 'isBlocked']) && 
+                    (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /shared_tests/{testId} {
+      allow read: if true; // Publicly readable as per requirements
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.createdBy || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.createdBy || isAdmin());
+    }
+
+    match /leaderboard/{docId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (request.auth.uid == request.resource.data.uid || isAdmin());
+    }
+
+    // Default deny for other collections
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -168,7 +168,7 @@ export default function ParikshAI() {
       }
 
       setProcessingStatus('Analyzing questions with Gemini AI...');
-      const { ai, systemInstruction } = await getAI();
+      const { generateContent } = await getAI();
       
       const prompt = `
         You are an expert educational data extractor.
@@ -195,12 +195,12 @@ export default function ParikshAI() {
         ${answerText ? `Answer Key Text:\n${answerText.substring(0, 10000)}` : ''}
       `;
 
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
+        feature: 'PARIKSHAI',
         config: {
           responseMimeType: 'application/json',
-          systemInstruction,
           responseSchema: {
             type: Type.ARRAY,
             items: {
@@ -280,7 +280,7 @@ export default function ParikshAI() {
     setProcessingStatus('Generating AI Trend Analysis & Study Strategy...');
     
     try {
-      const { ai, systemInstruction } = await getAI();
+      const { generateContent } = await getAI();
       
       const allQuestions = exam.papers.flatMap(p => p.questions);
       
@@ -301,12 +301,12 @@ export default function ParikshAI() {
         ${JSON.stringify(allQuestions)}
       `;
 
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
+        feature: 'PARIKSHAI',
         config: {
           responseMimeType: 'application/json',
-          systemInstruction,
           responseSchema: {
             type: Type.OBJECT,
             properties: {

@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { Question } from "./storage";
 import { getAI, withRetry } from "./aiClient";
 
@@ -11,9 +11,7 @@ export interface SlideData {
 }
 
 export async function generateVidyalayText(topic: string, exam: string): Promise<string> {
-  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
-  const ai = result.ai;
-  const systemInstruction = result.systemInstruction;
+  const { generateContent } = await getAI();
   const prompt = `
 You are an expert AI tutor for the ${exam} exam.
 The student wants to study the topic: "${topic}".
@@ -28,28 +26,27 @@ Format the output as clean Markdown.
 `;
 
   try {
-    const response = (await withRetry(() => ai.models.generateContent({
+    const response = await withRetry(() => generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
+      feature: "AI_TUTOR",
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.2,
-        systemInstruction
       }
-    }), 2, 3000)) as GenerateContentResponse; // 2 retries with search, 3s initial delay
+    }), 2, 3000);
     return response.text || "Failed to generate content.";
   } catch (error: any) {
-    // If search fails with 429, retry WITHOUT search
-    if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
       console.warn("Search quota hit, retrying without search...");
-      const response = (await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt.replace("Using Google Search to find the absolute latest data, ", ""),
+        feature: "AI_TUTOR",
         config: {
           temperature: 0.2,
-          systemInstruction
         }
-      }), 2, 3000)) as GenerateContentResponse;
+      }), 2, 3000);
       return (response.text || "") + "\n\n*(Note: Latest search data unavailable due to API quota limits. Using internal knowledge base.)*";
     }
     throw error;
@@ -57,9 +54,7 @@ Format the output as clean Markdown.
 }
 
 export async function generateVidyalaySlides(topic: string, exam: string): Promise<SlideData[]> {
-  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
-  const ai = result.ai;
-  const systemInstruction = result.systemInstruction;
+  const { generateContent } = await getAI();
   const prompt = `
 You are an expert AI tutor for the ${exam} exam.
 The student wants to study the topic: "${topic}".
@@ -78,7 +73,6 @@ Return a JSON array of objects. Each object must have:
   const config: any = {
     temperature: 0.2,
     responseMimeType: "application/json",
-    systemInstruction,
     responseSchema: {
       type: Type.ARRAY,
       items: {
@@ -95,24 +89,26 @@ Return a JSON array of objects. Each object must have:
   };
 
   try {
-    const response = (await withRetry(() => ai.models.generateContent({
+    const response = await withRetry(() => generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,
+      feature: "AI_TUTOR",
       config: {
         ...config,
         tools: [{ googleSearch: {} }],
       }
-    }), 2, 3000)) as GenerateContentResponse;
+    }), 2, 3000);
     const jsonStr = response.text?.trim() || "[]";
     return JSON.parse(jsonStr) as SlideData[];
   } catch (error: any) {
-    if (JSON.stringify(error).includes('429') || JSON.stringify(error).includes('RESOURCE_EXHAUSTED')) {
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
       console.warn("Search quota hit for slides, retrying without search...");
-      const response = (await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt.replace("Using Google Search, ", ""),
+        feature: "AI_TUTOR",
         config
-      }), 2, 3000)) as GenerateContentResponse;
+      }), 2, 3000);
       const jsonStr = response.text?.trim() || "[]";
       return JSON.parse(jsonStr) as SlideData[];
     }
@@ -121,12 +117,10 @@ Return a JSON array of objects. Each object must have:
 }
 
 export async function generateSlideImage(imagePrompt: string): Promise<string> {
-  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
-  const ai = result.ai;
-  const systemInstruction = result.systemInstruction;
+  const { generateContent } = await getAI();
   
   try {
-    const response = (await withRetry(() => ai.models.generateContent({
+    const response = await withRetry(() => generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
         parts: [
@@ -135,13 +129,13 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
           },
         ],
       },
+      feature: "AI_TUTOR",
       config: {
         imageConfig: {
           aspectRatio: "16:9"
         },
-        systemInstruction
       },
-    }))) as GenerateContentResponse;
+    }));
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
@@ -157,9 +151,7 @@ export async function generateSlideImage(imagePrompt: string): Promise<string> {
 }
 
 export async function generateVidyalayTest(topic: string, exam: string): Promise<Question[]> {
-  const result: { ai: GoogleGenAI; systemInstruction: string } = await getAI();
-  const ai = result.ai;
-  const systemInstruction = result.systemInstruction;
+  const { generateContent } = await getAI();
   const prompt = `
 You are an expert examiner for the ${exam} exam.
 Generate 10 high-quality multiple-choice questions (MCQs) on the topic: "${topic}".
@@ -170,13 +162,13 @@ Return ONLY a JSON array of objects with this structure:
 (where correct is the 0-based index of the correct option).
 `;
 
-  const response = (await withRetry(() => ai.models.generateContent({
+  const response = await withRetry(() => generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
+    feature: "AI_TUTOR",
     config: {
       temperature: 0.2,
       responseMimeType: "application/json",
-      systemInstruction,
       responseSchema: {
         type: Type.ARRAY,
         items: {
@@ -194,7 +186,7 @@ Return ONLY a JSON array of objects with this structure:
         }
       }
     }
-  }))) as GenerateContentResponse;
+  }));
 
   try {
     const jsonStr = response.text?.trim() || "[]";

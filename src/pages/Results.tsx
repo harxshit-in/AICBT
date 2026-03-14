@@ -49,7 +49,7 @@ export default function Results() {
     
     setLoadingExplanations(prev => ({ ...prev, [qIdx]: true }));
     try {
-      const { ai, systemInstruction } = await getAI();
+      const { generateContent } = await getAI();
       const studentAnsText = studentAnsIdx !== null ? options[studentAnsIdx] : 'Skipped';
       const correctAnsText = options[correctIdx];
       
@@ -65,16 +65,15 @@ export default function Results() {
         Use bullet points if needed. Keep it under 100 words.
       `;
 
-      const response = await withRetry(() => ai.models.generateContent({
+      const response = await withRetry(() => generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [{ parts: [{ text: prompt }] }],
-        config: { systemInstruction }
+        contents: prompt
       }));
 
       setExplanations(prev => ({ ...prev, [qIdx]: response.text || 'No explanation available.' }));
     } catch (error) {
       console.error('Error getting explanation:', error);
-      setExplanations(prev => ({ ...prev, [qIdx]: 'Failed to get AI explanation. Please check your API key and try again.' }));
+      setExplanations(prev => ({ ...prev, [qIdx]: 'Failed to get AI explanation. Please check your credit balance and try again.' }));
     } finally {
       setLoadingExplanations(prev => ({ ...prev, [qIdx]: false }));
     }

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, getDoc, doc, getDocs, query, orderBy, limit, updateDoc, deleteDoc, onSnapshot, setDoc, increment } from "firebase/firestore";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, collection, addDoc, getDoc, doc, getDocs, query, orderBy, limit, updateDoc, deleteDoc, onSnapshot, setDoc, increment, where } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { QuestionBank } from "./storage";
 
 const firebaseConfig = {
@@ -15,6 +15,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+
+export { signInWithPopup, onAuthStateChanged };
 
 export async function shareBank(bank: QuestionBank): Promise<string> {
   const dataToSave = {
@@ -243,4 +246,42 @@ export async function getAllCurrentAffairs(): Promise<any[]> {
 export async function updateCurrentAffairsStatus(id: string, approved: boolean): Promise<void> {
   const docRef = doc(db, "current_affairs", id);
   await updateDoc(docRef, { approved });
+}
+
+export async function updateGlobalLeaderboard(uid: string, name: string, totalXP: number, accuracy: number): Promise<void> {
+  if (totalXP >= 150 && accuracy >= 65) {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    const weekId = monday.toISOString().split('T')[0];
+
+    await setDoc(doc(db, "leaderboard", `${weekId}_${uid}`), {
+      uid,
+      name,
+      totalXP,
+      accuracy,
+      weekId,
+      updatedAt: Date.now()
+    }, { merge: true });
+  }
+}
+
+export async function getGlobalLeaderboard(): Promise<any[]> {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(now.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  const weekId = monday.toISOString().split('T')[0];
+
+  const q = query(
+    collection(db, "leaderboard"),
+    where("weekId", "==", weekId),
+    orderBy("totalXP", "desc"),
+    limit(10)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => d.data());
 }

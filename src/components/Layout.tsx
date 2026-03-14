@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug, LogOut, ChevronRight } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { listenToNotifications, auth, getUserProfile } from '../utils/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getAllBanks, QuestionBank } from '../utils/storage';
 import BugReportDialog from './BugReportDialog';
 
@@ -19,38 +19,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [recentBanks, setRecentBanks] = useState<QuestionBank[]>([]);
   const [showBugReport, setShowBugReport] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const profile = await getUserProfile(user.uid);
-        setUserRole(profile?.role || 'user');
+        setUserProfile(profile);
       } else {
-        setUserRole(null);
+        setUserProfile(null);
       }
     });
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (isSidebarOpen) {
-      getAllBanks().then(banks => {
-        setRecentBanks(banks.sort((a, b) => b.createdAt - a.createdAt));
-      });
-    }
-  }, [isSidebarOpen]);
+    getAllBanks().then(banks => {
+      setRecentBanks(banks.sort((a, b) => b.createdAt - a.createdAt));
+    });
+  }, [location.pathname]);
 
   useEffect(() => {
-    // Request notification permission if not granted
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
     const unsubscribe = listenToNotifications((newNotifications) => {
       setNotifications(newNotifications);
-      
-      // Check for new notifications to show browser push
       const lastSeenId = localStorage.getItem('last_seen_notification_id');
       if (newNotifications.length > 0) {
         const latest = newNotifications[0];
@@ -79,10 +74,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check if we should show the install prompt
     const hasSeenPrompt = localStorage.getItem('has_seen_install_prompt');
     if (isInstallable && !hasSeenPrompt) {
-      // Small delay so it doesn't pop up instantly
       const timer = setTimeout(() => {
         setShowInstallPrompt(true);
       }, 3000);
@@ -100,163 +93,210 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     dismissPrompt();
   };
 
-  const navItems = [
-    { name: 'Explore', path: '/explore', icon: Globe },
-    { name: 'ParikshAI', path: '/parikshai', icon: Brain },
-    { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
-    { name: 'AI Summary', path: '/ai-summary', icon: Headphones },
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Upload PDF', path: '/upload', icon: FileUp },
-    { name: 'OMR Scan', path: '/omr', icon: ScanLine },
-    { name: 'Settings', path: '/settings', icon: Settings },
-    { name: 'About', path: '/about', icon: Info },
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate('/login');
+  };
+
+  const navGroups = [
+    {
+      title: 'HOME',
+      items: [
+        { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+        { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
+        { name: 'Explore', path: '/explore', icon: Globe },
+      ]
+    },
+    {
+      title: 'PRACTICE',
+      items: [
+        { name: 'PDF to CBT', path: '/upload', icon: FileUp },
+        { name: 'OMR Scan', path: '/omr', icon: ScanLine },
+      ]
+    },
+    {
+      title: 'AI TOOLS',
+      items: [
+        { name: 'ParikshAI', path: '/parikshai', icon: Brain },
+        { name: 'AI Summary', path: '/ai-summary', icon: Headphones },
+      ]
+    }
   ];
 
-  return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans">
-      {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3 print:hidden">
-            <div className="flex items-center justify-between max-w-5xl mx-auto">
-              <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <Menu className="w-6 h-6" />
-                </button>
-                <Link to="/" className="flex items-center gap-2 group">
-                  <div className="bg-orange-500 p-1.5 rounded-lg group-hover:scale-105 transition-transform">
-                    <GraduationCap className="text-white w-5 h-5" />
-                  </div>
-                  <span className="text-xl font-bold tracking-tight text-slate-800">
-                    AI <span className="text-orange-500">CBT</span>
-                  </span>
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={handleOpenNotifications}
-                  className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  <Bell className="w-6 h-6" />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                  )}
-                </button>
-              </div>
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200">
+      <div className="p-6 flex items-center gap-3">
+        <div className="bg-[#5b6cf9] p-2 rounded-xl">
+          <GraduationCap className="text-white w-5 h-5" />
+        </div>
+        <span className="text-xl font-bold text-slate-800 tracking-tight">AI CBT</span>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto py-2 px-4 space-y-6 custom-scrollbar">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-3">{group.title}</div>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-[#f0f4ff] text-[#5b6cf9]'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {item.name}
+                  </Link>
+                );
+              })}
             </div>
-          </nav>
+          </div>
+        ))}
 
-          {/* Sidebar Overlay */}
-          <AnimatePresence>
-            {isSidebarOpen && (
-              <>
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="fixed inset-0 z-[120] bg-slate-900/20 backdrop-blur-sm"
-                />
-                <motion.div 
-                  initial={{ x: '-100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '-100%' }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="fixed inset-y-0 left-0 z-[130] w-72 bg-white shadow-2xl border-r border-slate-100 flex flex-col"
-                >
-                  <div className="p-4 flex items-center justify-between border-b border-slate-100">
-                    <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-2">
-                      <div className="bg-slate-800 p-2 rounded-xl">
-                        <GraduationCap className="text-white w-5 h-5" />
-                      </div>
-                      <span className="text-lg font-bold text-slate-800">AI CBT</span>
-                    </Link>
-                    <button 
-                      onClick={() => setIsSidebarOpen(false)}
-                      className="p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = location.pathname === item.path;
-                      return (
-                        <Link
-                          key={item.path}
-                          to={item.path}
-                          onClick={() => setIsSidebarOpen(false)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                            isActive
-                              ? 'bg-slate-100 text-slate-900'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                          }`}
-                        >
-                          <Icon className="w-5 h-5" />
-                          {item.name}
-                        </Link>
-                      );
-                    })}
+        <div>
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-3">SUPPORT</div>
+          <div className="space-y-1">
+            <button
+              onClick={() => {
+                setShowBugReport(true);
+                setIsSidebarOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+            >
+              <Bug className="w-4 h-4" />
+              Report Bug
+            </button>
+            <Link
+              to="/about"
+              onClick={() => setIsSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+            >
+              <Info className="w-4 h-4" />
+              Help & Support
+            </Link>
+            <Link
+              to="/settings"
+              onClick={() => setIsSidebarOpen(false)}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </Link>
+          </div>
+        </div>
+      </div>
 
-                    {/* Admin items removed from sidebar per user request */}
+      <div className="p-4 border-t border-slate-100">
+        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#f0f4ff] flex items-center justify-center text-[#5b6cf9] font-bold text-sm">
+              {userProfile?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-slate-700 truncate max-w-[120px]">
+                {userProfile?.name || 'User'}
+              </span>
+              <span className="text-[10px] text-slate-500 truncate max-w-[120px]">
+                {auth.currentUser?.phoneNumber || 'Profile'}
+              </span>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors p-2">
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-                    <button
-                      onClick={() => {
-                        setShowBugReport(true);
-                        setIsSidebarOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all mt-2"
-                    >
-                      <Bug className="w-5 h-5" />
-                      Report Bug
-                    </button>
+  return (
+    <div className="min-h-screen bg-[#fafafa] text-slate-900 font-sans flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:block w-64 fixed inset-y-0 left-0 z-40">
+        <SidebarContent />
+      </aside>
 
-                    {recentBanks.length > 0 && (
-                      <div className="pt-6 pb-2">
-                        <div className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                          Recent Tests
-                        </div>
-                        <div className="space-y-1">
-                          {recentBanks.slice(0, 5).map(bank => (
-                            <Link
-                              key={bank.bankId}
-                              to={`/exam-overview/${bank.bankId}`}
-                              onClick={() => setIsSidebarOpen(false)}
-                              className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl truncate transition-colors"
-                            >
-                              {bank.name}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+      {/* Mobile Top Navigation Bar */}
+      <nav className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 px-4 py-3 print:hidden">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <Link to="/" className="flex items-center gap-2">
+              <div className="bg-[#5b6cf9] p-1.5 rounded-lg">
+                <GraduationCap className="text-white w-5 h-5" />
+              </div>
+              <span className="text-xl font-bold tracking-tight text-slate-800">AI CBT</span>
+            </Link>
+          </div>
 
-                  {isInstallable && (
-                    <div className="p-4 border-t border-slate-100">
-                      <button 
-                        onClick={() => {
-                          installApp();
-                          setIsSidebarOpen(false);
-                        }}
-                        className="w-full bg-slate-100 text-slate-700 px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                        Install App
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              </>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleOpenNotifications}
+              className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <Bell className="w-6 h-6" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 z-[120] bg-slate-900/20 backdrop-blur-sm lg:hidden"
+            />
+            <motion.div 
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 z-[130] w-72 bg-white shadow-2xl flex flex-col lg:hidden"
+            >
+              <SidebarContent />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content Area */}
+      <main className="flex-1 lg:ml-64 pt-16 lg:pt-0 min-h-screen flex flex-col">
+        {/* Desktop Header (Notifications) */}
+        <header className="hidden lg:flex items-center justify-end px-8 py-4 bg-transparent sticky top-0 z-30">
+          <button 
+            onClick={handleOpenNotifications}
+            className="relative p-2 text-slate-500 hover:bg-white rounded-xl transition-colors shadow-sm bg-white/50 backdrop-blur-sm border border-slate-200/50"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
             )}
-          </AnimatePresence>
+          </button>
+        </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-2">
-        {children}
+        <div className="flex-1 w-full max-w-7xl mx-auto p-4 lg:p-8">
+          {children}
+        </div>
       </main>
 
       {/* Notifications Panel */}
@@ -279,7 +319,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-orange-500" />
+                  <Bell className="w-5 h-5 text-blue-500" />
                   Notifications
                 </h2>
                 <button 
@@ -328,9 +368,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
 
-      {/* Bottom Nav for Mobile - Removed in favor of sidebar */}
-
-      {/* First-time Install Prompt */}
       <BugReportDialog isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
       <AnimatePresence>
         {showInstallPrompt && (
@@ -349,7 +386,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </button>
 
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center text-orange-500 mb-2">
+                <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center text-blue-500 mb-2">
                   <Download className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Install AI CBT</h3>
@@ -359,7 +396,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="w-full space-y-3 pt-4">
                   <button
                     onClick={handleInstall}
-                    className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full bg-blue-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-600 transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Download className="w-5 h-5" />
                     Install Now

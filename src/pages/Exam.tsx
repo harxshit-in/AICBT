@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getBank, QuestionBank, saveResult, ExamResult, updateUserStats } from '../utils/storage';
+import { auth, updateGlobalLeaderboard } from '../utils/firebase';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -127,7 +128,21 @@ export default function Exam() {
     };
 
     await saveResult(examResult);
-    await updateUserStats(examResult, bank.questions);
+    const updatedStats = await updateUserStats(examResult, bank.questions);
+    
+    if (auth.currentUser) {
+      const totalCorrect = Object.values(updatedStats.subjectMastery).reduce((acc, curr) => acc + curr.correct, 0);
+      const overallAccuracy = updatedStats.totalQuestionsSolved > 0 
+        ? Math.round((totalCorrect / updatedStats.totalQuestionsSolved) * 100) 
+        : 0;
+      await updateGlobalLeaderboard(
+        auth.currentUser.uid, 
+        candidateName, 
+        updatedStats.totalXP, 
+        overallAccuracy
+      );
+    }
+
     localStorage.setItem('last_exam_results', JSON.stringify(results));
     navigate('/results');
   }, [bank, answers, timeLeft, navigate]);

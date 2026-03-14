@@ -57,7 +57,7 @@ export default function TeamAdmin() {
     if (!pastedText.trim()) return;
     setIsExtracting(true);
     try {
-      const { ai } = await getAI();
+      const { generateContent } = await getAI();
       const prompt = `
         Analyze the following text and extract current affairs information.
         Format the output as a JSON object with the following structure:
@@ -74,7 +74,7 @@ export default function TeamAdmin() {
         ${pastedText}
       `;
       
-      const response = await ai.models.generateContent({
+      const response = await generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: { responseMimeType: 'application/json' }
