@@ -8,7 +8,6 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { GoogleGenAI } from "@google/genai";
 import Database from "better-sqlite3";
-import admin from "firebase-admin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,8 +59,6 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-const adminDb = admin.firestore();
-
 const getApiKeys = () => {
   const keys: string[] = [];
   for (let i = 1; i <= 15; i++) {
@@ -79,8 +76,6 @@ const getApiKeys = () => {
 const PREMIUM_FEATURES = ['PDF_TO_CBT', 'AI_TUTOR', 'AI_SUMMARY', 'PARIKSHAI'];
 
 const checkCredits = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const { feature } = req.body;
-  if (feature && !PREMIUM_FEATURES.includes(feature)) return next();
   const ip = (req.headers['x-forwarded-for'] as string || req.ip || "").split(',')[0].trim();
   const sanitizedIp = ip.replace(/[.#$[\]]/g, '_');
   const today = new Date().toISOString().split('T')[0];
@@ -108,7 +103,7 @@ const checkCredits = async (req: express.Request, res: express.Response, next: e
     next();
   } catch (error) { 
     console.error("checkCredits error:", error);
-    next(); 
+    return res.status(500).json({ error: "Internal server error checking credits." });
   }
 };
 
