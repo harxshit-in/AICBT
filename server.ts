@@ -5,12 +5,25 @@ import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
-import admin from "firebase-admin";
+import { getFirestore } from "firebase/firestore";
 import { GoogleGenAI } from "@google/genai";
+import Database from "better-sqlite3";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize SQLite database
+const dbPath = path.join(process.cwd(), 'credits.db');
+const sqliteDb = new Database(dbPath);
+
+// Create table if not exists
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS user_credits (
+    ip TEXT PRIMARY KEY,
+    credits INTEGER NOT NULL,
+    last_reset TEXT NOT NULL
+  )
+`);
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -24,14 +37,6 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-
-try {
-  admin.initializeApp({
-    projectId: "parikshai-harxshit",
-  });
-} catch (e) {
-  console.error("Firebase Admin initialization error:", e);
-}
 
 const app = express();
 
@@ -53,6 +58,8 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later."
 });
 app.use('/api/', limiter);
+
+const adminDb = admin.firestore();
 
 const getApiKeys = () => {
   const keys: string[] = [];
@@ -78,28 +85,61 @@ const checkCredits = async (req: express.Request, res: express.Response, next: e
   const today = new Date().toISOString().split('T')[0];
   
   try {
-    const userRef = doc(db, "user_credits", sanitizedIp);
-    const userSnap = await getDoc(userRef);
-    let userData: any;
-    if (!userSnap.exists()) {
-      userData = { credits: 5, last_reset: today };
-      await setDoc(userRef, userData);
+    const stmt = sqliteDb.prepare('SELECT * FROM user_credits WHERE ip = ?');
+    let userData = stmt.get(sanitizedIp) as any;
+    
+    if (!userData) {
+      userData = { ip: sanitizedIp, credits: 5, last_reset: today };
+      const insertStmt = sqliteDb.prepare('INSERT INTO user_credits (ip, credits, last_reset) VALUES (?, ?, ?)');
+      insertStmt.run(userData.ip, userData.credits, userData.last_reset);
     } else {
-      userData = userSnap.data();
       if (userData.last_reset !== today) {
         userData.credits = 5;
         userData.last_reset = today;
-        await updateDoc(userRef, { credits: 5, last_reset: today });
+        const updateStmt = sqliteDb.prepare('UPDATE user_credits SET credits = ?, last_reset = ? WHERE ip = ?');
+        updateStmt.run(userData.credits, userData.last_reset, userData.ip);
       }
     }
+    
     if (userData.credits <= 0) return res.status(403).json({ error: "Daily credit limit reached." });
     (req as any).userCredits = userData.credits;
     (req as any).userIp = sanitizedIp;
     next();
-  } catch (error) { next(); }
+  } catch (error) { 
+    console.error("checkCredits error:", error);
+    next(); 
+  }
 };
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+
+app.get("/api/user-credits", async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] as string || req.ip || "").split(',')[0].trim();
+  const sanitizedIp = ip.replace(/[.#$[\]]/g, '_');
+  const today = new Date().toISOString().split('T')[0];
+  
+  try {
+    const stmt = sqliteDb.prepare('SELECT * FROM user_credits WHERE ip = ?');
+    let userData = stmt.get(sanitizedIp) as any;
+    
+    if (!userData) {
+      userData = { ip: sanitizedIp, credits: 5, last_reset: today };
+      const insertStmt = sqliteDb.prepare('INSERT INTO user_credits (ip, credits, last_reset) VALUES (?, ?, ?)');
+      insertStmt.run(userData.ip, userData.credits, userData.last_reset);
+    } else {
+      if (userData.last_reset !== today) {
+        userData.credits = 5;
+        userData.last_reset = today;
+        const updateStmt = sqliteDb.prepare('UPDATE user_credits SET credits = ?, last_reset = ? WHERE ip = ?');
+        updateStmt.run(userData.credits, userData.last_reset, userData.ip);
+      }
+    }
+    return res.json({ credits: userData.credits });
+  } catch (error) {
+    console.error("Error fetching credits:", error);
+    return res.status(500).json({ error: "Failed to fetch credits" });
+  }
+});
 
 app.post("/api/gemini-proxy", checkCredits, async (req, res) => {
   const { contents, model, systemInstruction, config, feature } = req.body;
@@ -132,7 +172,14 @@ app.post("/api/gemini-proxy", checkCredits, async (req, res) => {
       });
       
       const userIp = (req as any).userIp;
-      if (userIp && isPremium) updateDoc(doc(db, "user_credits", userIp), { credits: increment(-1) }).catch(console.error);
+      if (userIp && isPremium) {
+        try {
+          const updateStmt = sqliteDb.prepare('UPDATE user_credits SET credits = credits - 1 WHERE ip = ?');
+          updateStmt.run(userIp);
+        } catch (err) {
+          console.error("Failed to decrement credits:", err);
+        }
+      }
       
       // The SDK returns a GenerateContentResponse object.
       // We can serialize it to JSON.

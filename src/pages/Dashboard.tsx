@@ -224,7 +224,7 @@ export default function Dashboard() {
               {pdfTests.map(test => (
                 <div 
                   key={test.bankId}
-                  onClick={() => navigate(`/test/${test.bankId}`)}
+                  onClick={() => navigate(`/exam-overview/${test.bankId}`)}
                   className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer flex flex-col h-full"
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -264,7 +264,7 @@ export default function Dashboard() {
                 return (
                   <div 
                     key={result.resultId}
-                    onClick={() => navigate(`/results/${result.resultId}`)}
+                    onClick={() => navigate(`/exam-overview/${result.bankId}`)}
                     className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-4">

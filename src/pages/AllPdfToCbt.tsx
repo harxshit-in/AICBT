@@ -52,7 +52,7 @@ export default function AllPdfToCbt() {
           {filteredTests.map(test => (
             <div 
               key={test.bankId}
-              onClick={() => navigate(`/test/${test.bankId}`)}
+              onClick={() => navigate(`/exam-overview/${test.bankId}`)}
               className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer flex flex-col h-full"
             >
               <div className="flex items-start justify-between mb-4">
