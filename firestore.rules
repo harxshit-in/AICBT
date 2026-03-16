@@ -108,9 +108,14 @@ service cloud.firestore {
       allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
     }
 
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     match /messages/{messageId} {
-      allow read: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid));
-      allow create: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)) && (get(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)).data.role == 'approved_poster' || isAdmin());
+      allow read: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(resource.data.topicId + '_' + request.auth.uid));
+      allow create: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)) && (get(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)).data.role in ['member', 'approved_poster'] || isAdmin());
     }
 
     match /reactions/{reactionId} {

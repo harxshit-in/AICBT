@@ -357,6 +357,29 @@ export async function getMessages(topicId: string): Promise<any[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+export async function getJoinedTopics(userId: string): Promise<any[]> {
+  const q = query(collection(db, "topic_members"), where("userId", "==", userId), where("status", "==", "joined"));
+  const snap = await getDocs(q);
+  const topicIds = snap.docs.map(d => d.data().topicId);
+  
+  if (topicIds.length === 0) return [];
+
+  const topics: any[] = [];
+  for (const topicId of topicIds) {
+    const topicDoc = await getDoc(doc(db, "topics", topicId));
+    if (topicDoc.exists()) {
+      topics.push({ id: topicDoc.id, ...topicDoc.data() });
+    }
+  }
+  return topics;
+}
+
+export async function getTopicDetails(topicId: string): Promise<any | null> {
+  const docRef = doc(db, "topics", topicId);
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+}
+
 export async function getTopicMembers(topicId: string): Promise<any[]> {
   const q = query(collection(db, "topic_members"), where("topicId", "==", topicId));
   const snap = await getDocs(q);

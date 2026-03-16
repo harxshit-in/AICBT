@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile } from '../utils/firebase';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile, createTopic, closeTopic, getTopics, getTopicMembers, approveUser } from '../utils/firebase';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
 import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper } from 'lucide-react';
@@ -22,8 +22,13 @@ export default function Admin() {
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [reportedBugs, setReportedBugs] = useState<any[]>([]);
   const [reportedErrors, setReportedErrors] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs' | 'news'>('tests');
+  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs' | 'news' | 'community'>('tests');
   const [news, setNews] = useState<any[]>([]);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [newTopicName, setNewTopicName] = useState('');
+  const [newTopicImage, setNewTopicImage] = useState('');
 
   const [usageStats, setUsageStats] = useState<any[]>([]);
 
@@ -48,10 +53,39 @@ export default function Admin() {
       fetchBugsAndErrors();
       fetchNews();
       fetchUsage();
+      fetchTopics();
       setLoading(false);
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (selectedTopic) {
+      getTopicMembers(selectedTopic).then(setMembers);
+    }
+  }, [selectedTopic]);
+
+  const fetchTopics = async () => {
+    const data = await getTopics();
+    setTopics(data);
+  };
+
+  const handleCreateTopic = async () => {
+    await createTopic(newTopicName, newTopicImage);
+    setNewTopicName('');
+    setNewTopicImage('');
+    fetchTopics();
+  };
+
+  const handleCloseTopic = async (topicId: string) => {
+    await closeTopic(topicId);
+    fetchTopics();
+  };
+
+  const handleApproveUser = async (topicId: string, userId: string) => {
+    await approveUser(topicId, userId);
+    getTopicMembers(topicId).then(setMembers);
+  };
 
   const fetchUsage = async () => {
     try {
@@ -247,8 +281,55 @@ export default function Admin() {
                 >
                   Current Affairs
                 </button>
+                <button 
+                  onClick={() => setActiveTab('community')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'community' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Community
+                </button>
               </div>
             </div>
+
+            {activeTab === 'community' && (
+              <div className="space-y-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h3 className="text-lg font-bold">Create New Topic</h3>
+                  <input type="text" placeholder="Topic Name" value={newTopicName} onChange={e => setNewTopicName(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none" />
+                  <input type="text" placeholder="Image URL" value={newTopicImage} onChange={e => setNewTopicImage(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none" />
+                  <button onClick={handleCreateTopic} className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold">Create Topic</button>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold">Manage Topics</h3>
+                  {topics.map(topic => (
+                    <div key={topic.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <span>{topic.name} ({topic.status})</span>
+                      {topic.status === 'open' && <button onClick={() => handleCloseTopic(topic.id)} className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold">Close</button>}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold">Approve Users</h3>
+                  <select onChange={(e) => setSelectedTopic(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none">
+                    <option value="">Select a Topic</option>
+                    {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+
+                  {selectedTopic && (
+                    <div className="space-y-2">
+                      {members.filter(m => m.status === 'pending_approval').map(member => (
+                        <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                          <span>User ID: {member.userId}</span>
+                          <button onClick={() => handleApproveUser(selectedTopic, member.userId)} className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold">Approve</button>
+                        </div>
+                      ))}
+                      {members.filter(m => m.status === 'pending_approval').length === 0 && <p className="text-slate-500">No pending approvals.</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {activeTab === 'tests' && (
               <div className="space-y-4">

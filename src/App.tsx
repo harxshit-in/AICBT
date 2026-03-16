@@ -18,7 +18,6 @@ import AISummary from './pages/AISummary';
 import AllPdfToCbt from './pages/AllPdfToCbt';
 import Community from './pages/Community';
 import Topic from './pages/Topic';
-import AdminCommunity from './pages/AdminCommunity';
 import Admin from './pages/Admin';
 import TeamAdmin from './pages/TeamAdmin';
 import Intro from './pages/Intro';
@@ -103,7 +102,6 @@ export default function App() {
                     <Route path="/ai-summary" element={<ProtectedRoute><AISummary /></ProtectedRoute>} />
                     <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
                     <Route path="/community/:id" element={<ProtectedRoute><Topic /></ProtectedRoute>} />
-                    <Route path="/admin-community" element={<ProtectedRoute><AdminCommunity /></ProtectedRoute>} />
                     <Route path="/all-pdf-to-cbt" element={<ProtectedRoute><AllPdfToCbt /></ProtectedRoute>} />
                     <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

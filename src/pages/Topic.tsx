@@ -1,20 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { getMessages, sendMessage, addReaction, getTopicDetails } from '../utils/firebase';
+import { getMessages, sendMessage, getTopicDetails, getTopicMembers } from '../utils/firebase';
 import { auth } from '../utils/firebase';
-import { Send, Smile } from 'lucide-react';
+import { Send, Smile, Lock } from 'lucide-react';
 
 export default function Topic() {
   const { id } = useParams<{ id: string }>();
   const [messages, setMessages] = useState<any[]>([]);
   const [topic, setTopic] = useState<any>(null);
   const [content, setContent] = useState('');
+  const [isApproved, setIsApproved] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (id) {
+    if (id && auth.currentUser) {
       getTopicDetails(id).then(setTopic);
       getMessages(id).then(setMessages);
+      getTopicMembers(id).then(members => {
+        const member = members.find(m => m.userId === auth.currentUser?.uid);
+        setIsApproved(member?.role === 'approved_poster' || member?.role === 'admin');
+      });
     }
   }, [id]);
 
@@ -23,7 +28,7 @@ export default function Topic() {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!id || !auth.currentUser || !content.trim()) return;
+    if (!id || !auth.currentUser || !content.trim() || !isApproved) return;
     await sendMessage(id, auth.currentUser.uid, 'text', content);
     setContent('');
     getMessages(id).then(setMessages);
@@ -31,8 +36,9 @@ export default function Topic() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 p-4 font-bold text-lg text-slate-900">
-        #{topic?.name || 'Loading...'}
+      <header className="bg-white border-b border-slate-200 p-4 font-bold text-lg text-slate-900 flex items-center justify-between">
+        <span>#{topic?.name || 'Loading...'}</span>
+        {!isApproved && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full flex items-center gap-1"><Lock size={12}/> Pending Approval</span>}
       </header>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -50,19 +56,25 @@ export default function Topic() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-white border-t border-slate-200">
-        <div className="flex items-center gap-2 bg-slate-100 rounded-2xl p-2">
-          <button className="p-2 text-slate-500 hover:text-slate-700"><Smile /></button>
-          <input 
-            value={content} 
-            onChange={e => setContent(e.target.value)} 
-            onKeyPress={e => e.key === 'Enter' && handleSendMessage()}
-            className="flex-1 bg-transparent p-2 outline-none" 
-            placeholder={`Message #${topic?.name || '...'}`}
-          />
-          <button onClick={handleSendMessage} className="p-2 bg-blue-600 text-white rounded-xl"><Send size={18} /></button>
+      {isApproved ? (
+        <div className="p-4 bg-white border-t border-slate-200">
+          <div className="flex items-center gap-2 bg-slate-100 rounded-2xl p-2">
+            <button className="p-2 text-slate-500 hover:text-slate-700"><Smile /></button>
+            <input 
+              value={content} 
+              onChange={e => setContent(e.target.value)} 
+              onKeyPress={e => e.key === 'Enter' && handleSendMessage()}
+              className="flex-1 bg-transparent p-2 outline-none" 
+              placeholder={`Message #${topic?.name || '...'}`}
+            />
+            <button onClick={handleSendMessage} className="p-2 bg-blue-600 text-white rounded-xl"><Send size={18} /></button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-4 bg-white border-t border-slate-200 text-center text-slate-500 text-sm">
+          You need approval from the admin to send messages in this topic.
+        </div>
+      )}
     </div>
   );
 }
