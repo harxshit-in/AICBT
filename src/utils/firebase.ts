@@ -334,6 +334,17 @@ export async function approveUser(topicId: string, userId: string): Promise<void
   });
 }
 
+export function listenToTopicMember(topicId: string, userId: string, callback: (member: any) => void) {
+  const docRef = doc(db, "topic_members", `${topicId}_${userId}`);
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback({ id: docSnap.id, ...docSnap.data() });
+    } else {
+      callback(null);
+    }
+  });
+}
+
 export async function sendMessage(topicId: string, userId: string, type: 'text' | 'poll' | 'image', content: string, pollData?: any): Promise<void> {
   const userProfile = await getUserProfile(userId);
   const senderName = userProfile?.name || 'User';

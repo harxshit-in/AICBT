@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { listenToMessages, sendMessage, getTopicDetails, getTopicMembers, requestApproval, auth } from '../utils/firebase';
+import { listenToMessages, sendMessage, getTopicDetails, getTopicMembers, requestApproval, auth, listenToTopicMember } from '../utils/firebase';
 import { Send, Smile, Lock } from 'lucide-react';
 
 export default function Topic() {
@@ -16,17 +16,19 @@ export default function Topic() {
     if (id && auth.currentUser) {
       getTopicDetails(id).then(setTopic);
       
-      const unsubscribe = listenToMessages(id, (newMessages) => {
+      const unsubscribeMessages = listenToMessages(id, (newMessages) => {
         setMessages(newMessages);
       });
 
-      getTopicMembers(id).then(members => {
-        const member = members.find(m => m.userId === auth.currentUser?.uid);
+      const unsubscribeMember = listenToTopicMember(id, auth.currentUser.uid, (member) => {
         setIsApproved(member?.role === 'approved_poster' || member?.role === 'admin');
         setHasRequested(member?.status === 'pending_approval');
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribeMessages();
+        unsubscribeMember();
+      };
     }
   }, [id]);
 
