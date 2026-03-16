@@ -44,7 +44,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       Notification.requestPermission();
     }
 
-    const unsubscribe = listenToNotifications((newNotifications) => {
+    if (!auth.currentUser) return;
+
+    const unsubscribe = listenToNotifications(auth.currentUser.uid, (newNotifications) => {
       setNotifications(newNotifications);
       const lastSeenId = localStorage.getItem('last_seen_notification_id');
       if (newNotifications.length > 0) {
@@ -63,7 +65,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth.currentUser?.uid]);
 
   const handleOpenNotifications = () => {
     setShowNotifications(true);

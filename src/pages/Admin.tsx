@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, sendNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile, createTopic, closeTopic, getTopics, getTopicMembers, approveUser } from '../utils/firebase';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, broadcastNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile, createTopic, closeTopic, getTopics, getTopicMembers, approveUser } from '../utils/firebase';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
 import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper } from 'lucide-react';
@@ -172,7 +172,7 @@ export default function Admin() {
     e.preventDefault();
     if (!notificationTitle || !notificationBody) return;
     try {
-      await sendNotification(notificationTitle, notificationBody, notificationAttachment);
+      await broadcastNotification(notificationTitle, notificationBody, notificationAttachment);
       alert("Notification sent successfully!");
       setNotificationTitle('');
       setNotificationBody('');

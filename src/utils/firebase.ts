@@ -75,13 +75,21 @@ export async function deleteSharedBank(id: string): Promise<void> {
   await deleteDoc(docRef);
 }
 
-export async function sendNotification(title: string, body: string, attachmentUrl?: string): Promise<void> {
+export async function sendNotification(userId: string, title: string, body: string, attachmentUrl?: string): Promise<void> {
   await addDoc(collection(db, "notifications"), {
+    userId,
     title,
     body,
     attachmentUrl: attachmentUrl || null,
     createdAt: Date.now()
   });
+}
+
+export async function broadcastNotification(title: string, body: string, attachmentUrl?: string): Promise<void> {
+  const usersSnapshot = await getDocs(collection(db, "users"));
+  for (const userDoc of usersSnapshot.docs) {
+    await sendNotification(userDoc.id, title, body, attachmentUrl);
+  }
 }
 
 export async function getNotifications(): Promise<any[]> {
@@ -104,8 +112,8 @@ export async function getAnalyticsUsage(): Promise<any[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export function listenToNotifications(callback: (notifications: any[]) => void) {
-  const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(5));
+export function listenToNotifications(userId: string, callback: (notifications: any[]) => void) {
+  const q = query(collection(db, "notifications"), where("userId", "==", userId), orderBy("createdAt", "desc"), limit(5));
   return onSnapshot(q, (snapshot) => {
     const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(notifications);
@@ -338,6 +346,15 @@ export async function sendMessage(topicId: string, userId: string, type: 'text' 
     pollData: pollData || null,
     createdAt: Date.now()
   });
+
+  // Notify joined members
+  const members = await getTopicMembers(topicId);
+  const topic = await getTopicDetails(topicId);
+  for (const member of members) {
+    if (member.userId !== userId && member.status === 'joined') {
+      await sendNotification(member.userId, `New message in ${topic?.name || 'topic'}`, `${senderName}: ${content.substring(0, 50)}...`);
+    }
+  }
 }
 
 export async function addReaction(messageId: string, userId: string, emoji: string): Promise<void> {
@@ -386,7 +403,7 @@ export async function getTopicDetails(topicId: string): Promise<any | null> {
 export async function getTopicMembers(topicId: string): Promise<any[]> {
   const q = query(collection(db, "topic_members"), where("topicId", "==", topicId));
   const snap = await getDocs(q);
-  const members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const members = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
   
   const membersWithDetails = await Promise.all(members.map(async (member) => {
     const profile = await getUserProfile(member.userId);
