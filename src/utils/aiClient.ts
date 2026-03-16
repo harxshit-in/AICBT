@@ -15,8 +15,24 @@ export async function getAI(): Promise<{ generateContent: (params: any) => Promi
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to call AI service');
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        throw new Error(`Failed to call AI service: ${response.status} ${response.statusText}`);
+      }
+      
+      let errorMessage = 'Failed to call AI service';
+      if (errorData && errorData.error) {
+        if (typeof errorData.error === 'string') {
+          errorMessage = errorData.error;
+        } else if (errorData.error.message) {
+          errorMessage = errorData.error.message;
+        } else {
+          errorMessage = JSON.stringify(errorData.error);
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();

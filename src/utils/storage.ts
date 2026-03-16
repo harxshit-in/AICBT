@@ -133,6 +133,11 @@ export async function saveResult(result: ExamResult): Promise<void> {
   await db.put(RESULTS_STORE, result);
 }
 
+export async function getAllResults(): Promise<ExamResult[]> {
+  const db = await getDb();
+  return db.getAll(RESULTS_STORE);
+}
+
 export async function getResultsForBank(bankId: string): Promise<ExamResult[]> {
   const db = await getDb();
   return db.getAllFromIndex(RESULTS_STORE, 'bankId', bankId);

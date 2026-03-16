@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
 import admin from "firebase-admin";
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,24 +106,55 @@ app.post("/api/gemini-proxy", checkCredits, async (req, res) => {
   const keys = getApiKeys();
   const isPremium = !feature || PREMIUM_FEATURES.includes(feature);
 
-  if (keys.length === 0) return res.status(500).json({ error: "No API keys configured." });
+  if (keys.length === 0) {
+    console.error("No API keys found in environment variables.");
+    return res.status(500).json({ error: "No API keys configured." });
+  }
 
   for (const key of keys) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents, systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined, ...config }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        const userIp = (req as any).userIp;
-        if (userIp && isPremium) updateDoc(doc(db, "user_credits", userIp), { credits: increment(-1) }).catch(console.error);
-        return res.json(data);
+      const ai = new GoogleGenAI({ apiKey: key });
+      
+      const isImageModel = model.includes('image');
+      const isTtsModel = model.includes('tts');
+      
+      const genConfig = { ...config };
+      if (systemInstruction && !isImageModel && !isTtsModel) {
+        genConfig.systemInstruction = systemInstruction;
       }
-      if (response.status === 429 || (data.error && data.error.message.includes('quota'))) continue;
-      return res.status(response.status).json(data);
-    } catch (error) { console.error(error); }
+      
+      console.log(`Sending request to Gemini API via SDK (Model: ${model})...`);
+      
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: Object.keys(genConfig).length > 0 ? genConfig : undefined
+      });
+      
+      const userIp = (req as any).userIp;
+      if (userIp && isPremium) updateDoc(doc(db, "user_credits", userIp), { credits: increment(-1) }).catch(console.error);
+      
+      // The SDK returns a GenerateContentResponse object.
+      // We can serialize it to JSON.
+      // The frontend expects { candidates: [...], usageMetadata: ... }
+      // The SDK response has .candidates, .usageMetadata, etc.
+      return res.json({
+        candidates: response.candidates,
+        usageMetadata: response.usageMetadata
+      });
+      
+    } catch (error: any) {
+      console.error(`Gemini API Error:`, error);
+      
+      // The SDK throws errors with .status and .message
+      const status = error.status || 500;
+      const message = error.message || "An internal error occurred";
+      
+      if (status === 429 || message.includes('quota')) continue;
+      
+      // If it's a 400 error, return it immediately so we can see what's wrong
+      return res.status(status).json({ error: message });
+    }
   }
   res.status(429).json({ error: "All API keys exhausted." });
 });

@@ -15,6 +15,7 @@ import Explore from './pages/Explore';
 import ParikshAI from './pages/ParikshAI';
 import AIVidyalay from './pages/AIVidyalay';
 import AISummary from './pages/AISummary';
+import AllPdfToCbt from './pages/AllPdfToCbt';
 import Admin from './pages/Admin';
 import TeamAdmin from './pages/TeamAdmin';
 import Intro from './pages/Intro';
@@ -97,6 +98,7 @@ export default function App() {
                     {/* Locked Features */}
                     <Route path="/ai-vidyalay" element={<ProtectedRoute><AIVidyalay /></ProtectedRoute>} />
                     <Route path="/ai-summary" element={<ProtectedRoute><AISummary /></ProtectedRoute>} />
+                    <Route path="/all-pdf-to-cbt" element={<ProtectedRoute><AllPdfToCbt /></ProtectedRoute>} />
                     <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, FileText, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, Flame, Trophy, Target, ChevronRight, BookOpen, Clock, Download, Search, CheckCircle2, ScanLine, LayoutGrid, Medal, Users } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getUserStats, UserStats, QuestionBank, getAllBanks } from '../utils/storage';
+import { getUserStats, UserStats, QuestionBank, getAllBanks, ExamResult, getAllResults } from '../utils/storage';
 import { auth, getUserProfile } from '../utils/firebase';
 
 export default function Dashboard() {
@@ -10,11 +10,32 @@ export default function Dashboard() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [banks, setBanks] = useState<QuestionBank[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [recentTests, setRecentTests] = useState<ExamResult[]>([]);
+  const [pdfTests, setPdfTests] = useState<QuestionBank[]>([]);
+  const [motivation, setMotivation] = useState('');
 
   useEffect(() => {
     getUserStats().then(setStats);
-    getAllBanks().then(setBanks);
+    getAllBanks().then(banksData => {
+      setBanks(banksData);
+      const pdfs = banksData.filter(b => b.sourceFile && b.sourceFile.toLowerCase().endsWith('.pdf'));
+      setPdfTests(pdfs.sort((a, b) => b.createdAt - a.createdAt).slice(0, 3));
+    });
+    getAllResults().then(results => {
+      setRecentTests(results.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3));
+    });
+
+    const motivations = [
+      "Success is the sum of small efforts, repeated day in and day out.",
+      "The secret of getting ahead is getting started.",
+      "Don't watch the clock; do what it does. Keep going.",
+      "Believe you can and you're halfway there.",
+      "Your limitation—it's only your imagination.",
+      "Push yourself, because no one else is going to do it for you.",
+      "Great things never come from comfort zones.",
+      "Dream it. Wish it. Do it."
+    ];
+    setMotivation(motivations[Math.floor(Math.random() * motivations.length)]);
   }, []);
 
   useEffect(() => {
@@ -53,25 +74,13 @@ export default function Dashboard() {
           className="bg-white border border-slate-200 rounded-2xl p-8 relative overflow-hidden shadow-sm"
         >
           <div className="relative z-10">
-            <h1 className="text-3xl font-medium text-slate-900 mb-6 tracking-tight">
+            <h1 className="text-3xl font-medium text-slate-900 mb-2 tracking-tight">
               Hi, {userProfile?.name?.split(' ')[0] || 'Student'}
             </h1>
-            
-            <div className="relative max-w-3xl flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1.5 shadow-inner">
-              <input 
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Ask any doubt"
-                className="flex-1 pl-4 pr-4 py-3 text-slate-700 placeholder-slate-400 bg-transparent focus:outline-none text-base"
-              />
-              <button 
-                onClick={() => navigate('/ai-vidyalay')}
-                className="bg-slate-900 hover:bg-slate-800 text-white p-3 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0"
-              >
-                <Sparkles className="w-5 h-5" />
-              </button>
-            </div>
+            <p className="text-slate-500 text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-orange-500" />
+              {motivation}
+            </p>
           </div>
         </motion.div>
 
@@ -189,6 +198,96 @@ export default function Dashboard() {
             </button>
           </div>
         </motion.div>
+
+        {/* PDF to CBT Tests */}
+        {pdfTests.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">Your PDF to CBT Tests</h2>
+                <p className="text-sm text-slate-500 mt-1">Tests generated from your uploaded PDFs</p>
+              </div>
+              <button 
+                onClick={() => navigate('/all-pdf-to-cbt')}
+                className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1"
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pdfTests.map(test => (
+                <div 
+                  key={test.bankId}
+                  onClick={() => navigate(`/test/${test.bankId}`)}
+                  className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-orange-300 hover:shadow-md transition-all cursor-pointer flex flex-col h-full"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <span className="text-xs font-medium px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full">
+                      {test.questions.length} Qs
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-1 line-clamp-2 flex-1">{test.name}</h3>
+                  <p className="text-xs text-slate-500 mt-auto pt-4 border-t border-slate-100">
+                    {new Date(test.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Recently Attempted Tests */}
+        {recentTests.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
+          >
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Recently Attempted</h2>
+              <p className="text-sm text-slate-500 mt-1">Review your recent test performances</p>
+            </div>
+            
+            <div className="space-y-3">
+              {recentTests.map(result => {
+                const bank = banks.find(b => b.bankId === result.bankId);
+                return (
+                  <div 
+                    key={result.resultId}
+                    onClick={() => navigate(`/results/${result.resultId}`)}
+                    className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-slate-900">{bank?.name || 'Unknown Test'}</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {new Date(result.timestamp).toLocaleDateString()} • {Math.floor(result.timeTaken / 60)}m {result.timeTaken % 60}s
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-slate-900">{result.score} <span className="text-xs text-slate-500 font-normal">/ {result.totalQuestions}</span></div>
+                      <div className="text-xs font-medium text-emerald-600">{result.accuracy}% Acc.</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
 
       </div>
 
