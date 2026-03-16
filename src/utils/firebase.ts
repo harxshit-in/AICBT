@@ -371,10 +371,12 @@ export async function getTopics(): Promise<any[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function getMessages(topicId: string): Promise<any[]> {
+export function listenToMessages(topicId: string, callback: (messages: any[]) => void) {
   const q = query(collection(db, "messages"), where("topicId", "==", topicId), orderBy("createdAt", "asc"));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return onSnapshot(q, (snapshot) => {
+    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    callback(messages);
+  });
 }
 
 export async function getJoinedTopics(userId: string): Promise<any[]> {
