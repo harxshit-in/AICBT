@@ -44,9 +44,13 @@ export default function Topic() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
-      <header className="bg-white border-b border-slate-200 p-3 font-bold text-lg text-slate-900 flex items-center justify-between shrink-0">
+      <header className="bg-white border-b border-slate-200 p-3 font-bold text-lg text-slate-900 flex items-center justify-between shrink-0 h-16">
         <div className="flex items-center gap-3 overflow-hidden">
-          {topic?.imageUrl && <img src={topic.imageUrl} alt={topic.name} className="w-10 h-10 rounded-full object-cover shrink-0" />}
+          {topic?.imageUrl ? (
+            <img src={topic.imageUrl} alt={topic.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+          )}
           <span className="truncate">#{topic?.name || 'Loading...'}</span>
         </div>
         {!isApproved && topic?.status !== 'closed' && (
