@@ -327,9 +327,12 @@ export async function approveUser(topicId: string, userId: string): Promise<void
 }
 
 export async function sendMessage(topicId: string, userId: string, type: 'text' | 'poll' | 'image', content: string, pollData?: any): Promise<void> {
+  const userProfile = await getUserProfile(userId);
+  const senderName = userProfile?.name || 'User';
   await addDoc(collection(db, "messages"), {
     topicId,
     userId,
+    senderName,
     type,
     content,
     pollData: pollData || null,
@@ -383,5 +386,12 @@ export async function getTopicDetails(topicId: string): Promise<any | null> {
 export async function getTopicMembers(topicId: string): Promise<any[]> {
   const q = query(collection(db, "topic_members"), where("topicId", "==", topicId));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  const membersWithDetails = await Promise.all(members.map(async (member) => {
+    const profile = await getUserProfile(member.userId);
+    return { ...member, name: profile?.name || 'Unknown', email: profile?.email || 'Unknown' };
+  }));
+  
+  return membersWithDetails;
 }

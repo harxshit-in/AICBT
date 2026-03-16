@@ -320,7 +320,10 @@ export default function Admin() {
                     <div className="space-y-2">
                       {members.filter(m => m.status === 'pending_approval').map(member => (
                         <div key={member.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                          <span>User ID: {member.userId}</span>
+                          <div>
+                            <p className="font-bold">{member.name}</p>
+                            <p className="text-sm text-slate-500">{member.email}</p>
+                          </div>
                           <button onClick={() => handleApproveUser(selectedTopic, member.userId)} className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold">Approve</button>
                         </div>
                       ))}
