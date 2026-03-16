@@ -285,3 +285,80 @@ export async function getGlobalLeaderboard(): Promise<any[]> {
   const snap = await getDocs(q);
   return snap.docs.map(d => d.data());
 }
+
+export async function createTopic(name: string, imageUrl: string): Promise<string> {
+  const docRef = await addDoc(collection(db, "topics"), {
+    name,
+    imageUrl,
+    status: 'open',
+    createdBy: auth.currentUser?.uid,
+    createdAt: Date.now()
+  });
+  return docRef.id;
+}
+
+export async function closeTopic(topicId: string): Promise<void> {
+  await updateDoc(doc(db, "topics", topicId), { status: 'closed' });
+}
+
+export async function joinTopic(topicId: string, userId: string): Promise<void> {
+  await setDoc(doc(db, "topic_members", `${topicId}_${userId}`), {
+    topicId,
+    userId,
+    role: 'member',
+    status: 'joined'
+  });
+}
+
+export async function requestApproval(topicId: string, userId: string): Promise<void> {
+  await setDoc(doc(db, "topic_members", `${topicId}_${userId}`), {
+    topicId,
+    userId,
+    role: 'member',
+    status: 'pending_approval'
+  });
+}
+
+export async function approveUser(topicId: string, userId: string): Promise<void> {
+  await updateDoc(doc(db, "topic_members", `${topicId}_${userId}`), {
+    role: 'approved_poster',
+    status: 'joined'
+  });
+}
+
+export async function sendMessage(topicId: string, userId: string, type: 'text' | 'poll' | 'image', content: string, pollData?: any): Promise<void> {
+  await addDoc(collection(db, "messages"), {
+    topicId,
+    userId,
+    type,
+    content,
+    pollData: pollData || null,
+    createdAt: Date.now()
+  });
+}
+
+export async function addReaction(messageId: string, userId: string, emoji: string): Promise<void> {
+  await setDoc(doc(db, "reactions", `${messageId}_${userId}`), {
+    messageId,
+    userId,
+    emoji
+  });
+}
+
+export async function getTopics(): Promise<any[]> {
+  const q = query(collection(db, "topics"), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getMessages(topicId: string): Promise<any[]> {
+  const q = query(collection(db, "messages"), where("topicId", "==", topicId), orderBy("createdAt", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function getTopicMembers(topicId: string): Promise<any[]> {
+  const q = query(collection(db, "topic_members"), where("topicId", "==", topicId));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}

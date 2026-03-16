@@ -97,6 +97,27 @@ service cloud.firestore {
       allow write: if isAuthenticated() && (request.auth.uid == request.resource.data.uid || isAdmin());
     }
 
+    match /topics/{topicId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /topic_members/{memberId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.userId);
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid));
+      allow create: if isAuthenticated() && exists(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)) && (get(/databases/$(database)/documents/topic_members/$(request.resource.data.topicId + '_' + request.auth.uid)).data.role == 'approved_poster' || isAdmin());
+    }
+
+    match /reactions/{reactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+
     // Default deny for other collections
     match /{document=**} {
       allow read, write: if isAdmin();

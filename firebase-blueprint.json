@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Topic": {
+      "title": "Topic",
+      "description": "A community discussion topic",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the topic" },
+        "imageUrl": { "type": "string", "description": "URL of the topic image" },
+        "status": { "type": "string", "enum": ["open", "closed"], "description": "Status of the topic" },
+        "createdBy": { "type": "string", "description": "User ID of the admin who created it" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["name", "status", "createdBy", "createdAt"]
+    },
+    "TopicMember": {
+      "title": "TopicMember",
+      "description": "A member of a community topic",
+      "type": "object",
+      "properties": {
+        "topicId": { "type": "string", "description": "ID of the topic" },
+        "userId": { "type": "string", "description": "ID of the user" },
+        "role": { "type": "string", "enum": ["member", "approved_poster"], "description": "Role in the topic" },
+        "status": { "type": "string", "enum": ["joined", "pending_approval"], "description": "Status of membership" }
+      },
+      "required": ["topicId", "userId", "role", "status"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a topic",
+      "type": "object",
+      "properties": {
+        "topicId": { "type": "string", "description": "ID of the topic" },
+        "userId": { "type": "string", "description": "ID of the user" },
+        "type": { "type": "string", "enum": ["text", "poll", "image"], "description": "Type of message" },
+        "content": { "type": "string", "description": "Text content or image URL" },
+        "pollData": { "type": "object", "description": "Poll data if type is poll" },
+        "createdAt": { "type": "number", "description": "Timestamp of creation" }
+      },
+      "required": ["topicId", "userId", "type", "createdAt"]
+    },
+    "Reaction": {
+      "title": "Reaction",
+      "description": "A reaction to a message",
+      "type": "object",
+      "properties": {
+        "messageId": { "type": "string", "description": "ID of the message" },
+        "userId": { "type": "string", "description": "ID of the user" },
+        "emoji": { "type": "string", "description": "The emoji" }
+      },
+      "required": ["messageId", "userId", "emoji"]
+    }
+  },
+  "firestore": {
+    "/topics/{topicId}": {
+      "schema": { "$ref": "Topic" },
+      "description": "Community topics"
+    },
+    "/topic_members/{memberId}": {
+      "schema": { "$ref": "TopicMember" },
+      "description": "Topic memberships"
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Topic messages"
+    },
+    "/reactions/{reactionId}": {
+      "schema": { "$ref": "Reaction" },
+      "description": "Message reactions"
+    }
+  }
+}

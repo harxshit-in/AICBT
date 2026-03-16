@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug, LogOut, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug, LogOut, ChevronRight, MessageSquare } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { listenToNotifications, auth, getUserProfile } from '../utils/firebase';
@@ -103,6 +103,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       title: 'HOME',
       items: [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+        { name: 'Community', path: '/community', icon: MessageSquare },
         { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
         { name: 'Explore', path: '/explore', icon: Globe },
       ]

@@ -8,12 +8,13 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { GoogleGenAI } from "@google/genai";
 import Database from "better-sqlite3";
+import admin from "firebase-admin";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize SQLite database
-const dbPath = path.join(process.cwd(), 'credits.db');
+const dbPath = path.join('/tmp', 'credits.db');
 const sqliteDb = new Database(dbPath);
 
 // Create table if not exists
