@@ -34,6 +34,9 @@ try {
 
 const app = express();
 
+// Trust the proxy (required for Vercel/Cloud Run to correctly identify client IPs)
+app.set('trust proxy', 1);
+
 // Basic security middleware
 app.use(helmet({
   contentSecurityPolicy: false,
