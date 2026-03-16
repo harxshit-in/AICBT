@@ -45,11 +45,15 @@ export default function Topic() {
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       <header className="bg-white border-b border-slate-200 p-3 font-bold text-lg text-slate-900 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          {topic?.imageUrl && <img src={topic.imageUrl} alt={topic.name} className="w-10 h-10 rounded-full object-cover" />}
-          <span>#{topic?.name || 'Loading...'}</span>
+        <div className="flex items-center gap-3 overflow-hidden">
+          {topic?.imageUrl && <img src={topic.imageUrl} alt={topic.name} className="w-10 h-10 rounded-full object-cover shrink-0" />}
+          <span className="truncate">#{topic?.name || 'Loading...'}</span>
         </div>
-        {!isApproved && <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full flex items-center gap-1"><Lock size={12}/> Pending Approval</span>}
+        {!isApproved && topic?.status !== 'closed' && (
+          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full flex items-center gap-1 shrink-0">
+            <Lock size={12}/> Pending Approval
+          </span>
+        )}
       </header>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
