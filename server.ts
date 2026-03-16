@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import helmet from "helmet";
@@ -127,8 +126,10 @@ app.post("/api/gemini-proxy", checkCredits, async (req, res) => {
 
 // Vite middleware for development only
 if (process.env.NODE_ENV !== "production") {
-  createViteServer({ server: { middlewareMode: true }, appType: "spa" }).then(vite => {
-    app.use(vite.middlewares);
+  import("vite").then(({ createServer: createViteServer }) => {
+    createViteServer({ server: { middlewareMode: true }, appType: "spa" }).then(vite => {
+      app.use(vite.middlewares);
+    });
   });
 }
 
