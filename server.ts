@@ -137,7 +137,8 @@ if (process.env.NODE_ENV !== "production") {
 export default app;
 
 // Start server only if run directly (local development)
-if (require.main === module) {
+// In ESM, we check import.meta.url to see if this is the entry module
+if (import.meta.url === `file://${process.cwd()}/server.ts`) {
   const PORT = 3000;
   app.listen(PORT, "0.0.0.0", () => console.log(`Server running on http://localhost:${PORT}`));
 }
