@@ -70,8 +70,13 @@ export default function Leaderboard() {
                     {idx + 1}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-900 text-lg group-hover:text-blue-600 transition-colors">
+                    <div className="font-bold text-slate-900 text-lg group-hover:text-blue-600 transition-colors flex items-center gap-2">
                       {user.name}
+                      {user.totalXP > 1000 && (
+                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-full uppercase tracking-widest flex items-center gap-1">
+                          <Star size={10} fill="currentColor" /> Mentor
+                        </span>
+                      )}
                     </div>
                     <div className="md:hidden flex items-center gap-1 text-xs font-bold text-slate-400 mt-1">
                       <Target className="w-3 h-3" /> {user.accuracy}% Acc

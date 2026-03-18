@@ -117,6 +117,8 @@ export function listenToNotifications(userId: string, callback: (notifications: 
   return onSnapshot(q, (snapshot) => {
     const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     callback(notifications);
+  }, (error) => {
+    console.error("Notification listener error:", error);
   });
 }
 
@@ -325,6 +327,19 @@ export async function requestApproval(topicId: string, userId: string): Promise<
     role: 'member',
     status: 'pending_approval'
   });
+
+  // Notify admins
+  try {
+    const topic = await getTopicDetails(topicId);
+    const userProfile = await getUserProfile(userId);
+    const admins = (await getAllUsers()).filter(u => u.role === 'admin');
+    const notificationPromises = admins.map(admin => 
+      sendNotification(admin.uid, "New Approval Request", `${userProfile?.name || 'A user'} wants to post in #${topic?.name}`)
+    );
+    await Promise.all(notificationPromises);
+  } catch (err) {
+    console.error("Failed to notify admins:", err);
+  }
 }
 
 export async function approveUser(topicId: string, userId: string): Promise<void> {
@@ -332,6 +347,14 @@ export async function approveUser(topicId: string, userId: string): Promise<void
     role: 'approved_poster',
     status: 'joined'
   });
+
+  // Notify user
+  try {
+    const topic = await getTopicDetails(topicId);
+    await sendNotification(userId, "Request Approved!", `You can now post messages in #${topic?.name}`);
+  } catch (err) {
+    console.error("Failed to notify user:", err);
+  }
 }
 
 export function listenToTopicMember(topicId: string, userId: string, callback: (member: any) => void) {
@@ -358,13 +381,24 @@ export async function sendMessage(topicId: string, userId: string, type: 'text' 
     createdAt: Date.now()
   });
 
-  // Notify joined members
-  const members = await getTopicMembers(topicId);
-  const topic = await getTopicDetails(topicId);
-  for (const member of members) {
-    if (member.userId !== userId && member.status === 'joined') {
-      await sendNotification(member.userId, `New message in ${topic?.name || 'topic'}`, `${senderName}: ${content.substring(0, 50)}...`);
-    }
+  // Notify joined members in background
+  try {
+    const [members, topic] = await Promise.all([
+      getTopicMembers(topicId),
+      getTopicDetails(topicId)
+    ]);
+    
+    const notificationPromises = members
+      .filter(member => member.userId !== userId && member.status === 'joined')
+      .map(member => sendNotification(
+        member.userId, 
+        `New message in ${topic?.name || 'topic'}`, 
+        `${senderName}: ${content.substring(0, 50)}${content.length > 50 ? '...' : ''}`
+      ));
+    
+    await Promise.all(notificationPromises);
+  } catch (err) {
+    console.error("Failed to send notifications:", err);
   }
 }
 

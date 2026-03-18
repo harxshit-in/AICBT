@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { listenToMessages, sendMessage, getTopicDetails, getTopicMembers, requestApproval, auth, listenToTopicMember } from '../utils/firebase';
-import { Send, Smile, Lock } from 'lucide-react';
+import { Send, Smile, Lock, Brain, HelpCircle, Sparkles } from 'lucide-react';
+import { getAI, withRetry } from '../utils/aiClient';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Topic() {
   const { id } = useParams<{ id: string }>();
@@ -10,7 +12,54 @@ export default function Topic() {
   const [content, setContent] = useState('');
   const [isApproved, setIsApproved] = useState(false);
   const [hasRequested, setHasRequested] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleELI5 = async (msgContent: string) => {
+    setAiLoading(true);
+    try {
+      const ai = await getAI();
+      const prompt = `Explain this message in simple terms (ELI5): "${msgContent}". Use Markdown.`;
+      const response = await withRetry(() => ai.generateContent({
+        contents: [{ parts: [{ text: prompt }] }],
+        feature: 'ELI5_TUTOR'
+      }));
+      
+      // Send AI response as a message from "AI Tutor"
+      if (id) {
+        await sendMessage(id, 'ai_tutor_bot', 'text', `🤖 **AI ELI5 Explanation:**\n\n${response.text}`);
+      }
+    } catch (err) {
+      console.error("ELI5 Error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAIDoubtSolve = async () => {
+    if (!content.trim() || !id) return;
+    const doubt = content;
+    setContent('');
+    setAiLoading(true);
+    try {
+      // First send the user's doubt
+      await sendMessage(id, auth.currentUser?.uid || 'anon', 'text', doubt);
+      
+      const ai = await getAI();
+      const prompt = `Solve this doubt for a student preparing for competitive exams: "${doubt}". Provide a clear, step-by-step explanation. Use Markdown.`;
+      const response = await withRetry(() => ai.generateContent({
+        contents: [{ parts: [{ text: prompt }] }],
+        feature: 'DOUBT_SOLVER'
+      }));
+      
+      // Then send the AI's solution
+      await sendMessage(id, 'ai_tutor_bot', 'text', `🤖 **AI Doubt Solution:**\n\n${response.text}`);
+    } catch (err) {
+      console.error("Doubt Solver Error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (id && auth.currentUser) {
@@ -110,12 +159,21 @@ export default function Topic() {
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <div className={`px-4 py-3 rounded-3xl shadow-sm text-sm font-medium leading-relaxed ${
+                  <div className={`px-4 py-3 rounded-3xl shadow-sm text-sm font-medium leading-relaxed relative group/msg ${
                     isMe 
                       ? 'bg-blue-600 text-white rounded-br-none' 
                       : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'
                   }`}>
                     {msg.content}
+                    {!isMe && msg.userId !== 'ai_tutor_bot' && (
+                      <button 
+                        onClick={() => handleELI5(msg.content)}
+                        className="absolute -right-10 top-1/2 -translate-y-1/2 p-2 bg-white shadow-sm border border-slate-100 rounded-xl text-blue-500 opacity-0 group-hover/msg:opacity-100 transition-all hover:scale-110"
+                        title="Explain Like I'm 5"
+                      >
+                        <Brain size={14} />
+                      </button>
+                    )}
                   </div>
                   <span className={`text-[9px] font-bold text-slate-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'text-right' : 'text-left'}`}>
                     {formatTime(msg.createdAt)}
@@ -144,6 +202,9 @@ export default function Topic() {
                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 pr-12 outline-none focus:border-blue-200 focus:bg-white transition-all text-sm font-medium placeholder:text-slate-400" 
                 placeholder={`Type a message in #${topic?.name || '...'}`}
               />
+              <button className="absolute right-12 top-1/2 -translate-y-1/2 text-slate-300 hover:text-blue-500 transition-colors" title="AI Doubt Solver" onClick={handleAIDoubtSolve}>
+                <Sparkles size={20} />
+              </button>
               <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors">
                 <Smile size={20} />
               </button>

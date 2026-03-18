@@ -49,6 +49,71 @@
         "emoji": { "type": "string", "description": "The emoji" }
       },
       "required": ["messageId", "userId", "emoji"]
+    },
+    "MockTest": {
+      "title": "MockTest",
+      "description": "A mock exam for students",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the test" },
+        "subject": { "type": "string", "description": "Subject of the test" },
+        "questions": { "type": "array", "description": "List of questions" },
+        "createdBy": { "type": "string", "description": "User ID of creator" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["title", "subject", "questions", "createdBy", "createdAt"]
+    },
+    "TestResult": {
+      "title": "TestResult",
+      "description": "Result of a mock test",
+      "type": "object",
+      "properties": {
+        "testId": { "type": "string", "description": "ID of the test" },
+        "userId": { "type": "string", "description": "ID of the student" },
+        "score": { "type": "number", "description": "Final score" },
+        "feedback": { "type": "string", "description": "AI feedback" },
+        "answers": { "type": "array", "description": "User's answers" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["testId", "userId", "score", "answers", "createdAt"]
+    },
+    "Bounty": {
+      "title": "Bounty",
+      "description": "A doubt-solving bounty",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Question title" },
+        "description": { "type": "string", "description": "Question details" },
+        "reward": { "type": "number", "description": "Point reward" },
+        "status": { "type": "string", "enum": ["open", "solved"], "description": "Status" },
+        "userId": { "type": "string", "description": "ID of asker" },
+        "solverId": { "type": "string", "description": "ID of solver" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["title", "reward", "status", "userId", "createdAt"]
+    },
+    "StudySession": {
+      "title": "StudySession",
+      "description": "A Pomodoro study session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of student" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "type": { "type": "string", "enum": ["focus", "break"], "description": "Session type" },
+        "createdAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["userId", "duration", "type", "createdAt"]
+    },
+    "Exam": {
+      "title": "Exam",
+      "description": "An upcoming exam for countdown",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "ID of student" },
+        "name": { "type": "string", "description": "Exam name" },
+        "date": { "type": "number", "description": "Exam timestamp" }
+      },
+      "required": ["userId", "name", "date"]
     }
   },
   "firestore": {
@@ -67,6 +132,30 @@
     "/reactions/{reactionId}": {
       "schema": { "$ref": "Reaction" },
       "description": "Message reactions"
+    },
+    "/mock_tests/{testId}": {
+      "schema": { "$ref": "MockTest" },
+      "description": "Mock exams"
+    },
+    "/test_results/{resultId}": {
+      "schema": { "$ref": "TestResult" },
+      "description": "Mock exam results"
+    },
+    "/bounties/{bountyId}": {
+      "schema": { "$ref": "Bounty" },
+      "description": "Doubt bounties"
+    },
+    "/study_sessions/{sessionId}": {
+      "schema": { "$ref": "StudySession" },
+      "description": "Pomodoro sessions"
+    },
+    "/exams/{examId}": {
+      "schema": { "$ref": "Exam" },
+      "description": "Upcoming exams"
+    },
+    "/whiteboard_data/{sessionId}": {
+      "schema": { "type": "object", "properties": { "lines": { "type": "array" } } },
+      "description": "Collaborative whiteboard data"
     }
   }
 }

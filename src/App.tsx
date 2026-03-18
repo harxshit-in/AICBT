@@ -20,6 +20,10 @@ import Community from './pages/Community';
 import Topic from './pages/Topic';
 import Admin from './pages/Admin';
 import TeamAdmin from './pages/TeamAdmin';
+import StudyTools from './pages/StudyTools';
+import MockTests from './pages/MockTests';
+import Whiteboard from './pages/Whiteboard';
+import BountyBoard from './pages/BountyBoard';
 import Intro from './pages/Intro';
 import Login from './pages/Login';
 import FloatingChat from './components/FloatingChat';
@@ -96,6 +100,12 @@ export default function App() {
                     <Route path="/about" element={<About />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/team-admin" element={<TeamAdmin />} />
+                    
+                    {/* New Exam Prep Features */}
+                    <Route path="/study-tools" element={<ProtectedRoute><StudyTools /></ProtectedRoute>} />
+                    <Route path="/mock-tests" element={<ProtectedRoute><MockTests /></ProtectedRoute>} />
+                    <Route path="/whiteboard" element={<ProtectedRoute><Whiteboard /></ProtectedRoute>} />
+                    <Route path="/bounty-board" element={<ProtectedRoute><BountyBoard /></ProtectedRoute>} />
                     
                     {/* Locked Features */}
                     <Route path="/ai-vidyalay" element={<ProtectedRoute><AIVidyalay /></ProtectedRoute>} />

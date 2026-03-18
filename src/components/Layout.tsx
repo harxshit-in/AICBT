@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug, LogOut, ChevronRight, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, FileUp, Settings, ScanLine, GraduationCap, Info, Globe, Download, X, Brain, ArrowRight, Key, Bell, Menu, Headphones, Bug, LogOut, ChevronRight, MessageSquare, Zap, Coins, Edit3, BarChart3 } from 'lucide-react';
 import { usePWA } from '../context/PWAContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { listenToNotifications, auth, getUserProfile } from '../utils/firebase';
@@ -106,6 +106,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       items: [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Community', path: '/community', icon: MessageSquare },
+        { name: 'Bounty Board', path: '/bounty-board', icon: Coins },
+        { name: 'Whiteboard', path: '/whiteboard', icon: Edit3 },
         { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
         { name: 'Explore', path: '/explore', icon: Globe },
       ]
@@ -113,6 +115,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       title: 'PRACTICE',
       items: [
+        { name: 'Mock Tests', path: '/mock-tests', icon: BarChart3 },
         { name: 'PDF to CBT', path: '/upload', icon: FileUp },
         { name: 'OMR Scan', path: '/omr', icon: ScanLine },
       ]
@@ -120,6 +123,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       title: 'AI TOOLS',
       items: [
+        { name: 'Study Tools', path: '/study-tools', icon: Zap },
         { name: 'ParikshAI', path: '/parikshai', icon: Brain },
         { name: 'AI Summary', path: '/ai-summary', icon: Headphones },
       ]
