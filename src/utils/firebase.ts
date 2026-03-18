@@ -240,17 +240,21 @@ export async function getUserProfile(uid: string): Promise<any | null> {
 }
 
 export async function logFeatureUsage(feature: string, model: string, success: boolean): Promise<void> {
-  const date = new Date();
-  const dayKey = date.toISOString().split('T')[0];
-  const usageRef = doc(db, 'analytics_usage', `${dayKey}_${feature}_${model}`);
-  await setDoc(usageRef, {
-    feature,
-    model,
-    success: increment(success ? 1 : 0),
-    failure: increment(success ? 0 : 1),
-    count: increment(1),
-    date: dayKey
-  }, { merge: true });
+  try {
+    const date = new Date();
+    const dayKey = date.toISOString().split('T')[0];
+    const usageRef = doc(db, 'analytics_usage', `${dayKey}_${feature}_${model}`);
+    await setDoc(usageRef, {
+      feature,
+      model,
+      success: increment(success ? 1 : 0),
+      failure: increment(success ? 0 : 1),
+      count: increment(1),
+      date: dayKey
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Failed to log feature usage (likely permission denied):", err);
+  }
 }
 
 export async function updateUserRole(uid: string, role: 'admin' | 'team_admin' | 'user'): Promise<void> {

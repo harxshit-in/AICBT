@@ -39,11 +39,9 @@ import {
   setDoc,
   getDoc
 } from 'firebase/firestore';
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import Markdown from 'react-markdown';
-
-// Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+import { getAI } from '../utils/aiClient';
 
 interface Topic {
   id: string;
@@ -60,6 +58,15 @@ interface Profile {
   targetDate: number;
   teachers: Record<string, string>;
 }
+
+const EXAM_SUBJECTS: { [key: string]: string[] } = {
+  'SSC CGL': ['Mathematics', 'Reasoning', 'English', 'General Awareness'],
+  'Railway RRB': ['Mathematics', 'Reasoning', 'General Science', 'General Awareness'],
+  'Banking IBPS': ['Quantitative Aptitude', 'Reasoning', 'English', 'General Awareness'],
+  'UPSC CSE': ['History', 'Geography', 'Polity', 'Economy', 'Science & Tech', 'Environment'],
+  'State PSC': ['History', 'Geography', 'Polity', 'Economy', 'State GK'],
+  'Other': ['Mathematics', 'Reasoning', 'English', 'General Awareness']
+};
 
 export default function AICoaching() {
   const [loading, setLoading] = useState(true);
@@ -88,14 +95,24 @@ export default function AICoaching() {
     if (!user) return;
 
     const fetchProfile = async () => {
-      const profileRef = doc(db, 'ai_coaching_profiles', user.uid);
-      const profileSnap = await getDoc(profileRef);
-      
-      if (profileSnap.exists()) {
-        setProfile(profileSnap.data() as Profile);
-        setStep(4); // Go to dashboard
+      try {
+        const profileRef = doc(db, 'ai_coaching_profiles', user.uid);
+        const profileSnap = await getDoc(profileRef);
+        
+        if (profileSnap.exists()) {
+          setProfile(profileSnap.data() as Profile);
+          setStep(4); // Go to dashboard
+        }
+      } catch (err: any) {
+        if (err.code === 'permission-denied' || err.message?.includes('permission')) {
+          console.log("Profile not found (permission denied)");
+        } else {
+          console.error("Error fetching profile:", err);
+          setError("Failed to load profile. Please try again.");
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchProfile();
@@ -109,6 +126,8 @@ export default function AICoaching() {
     const unsubscribe = onSnapshot(topicsQuery, (snapshot) => {
       const topicsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Topic));
       setTopics(topicsData);
+    }, (err) => {
+      console.error("Error fetching topics:", err);
     });
 
     return () => unsubscribe();
@@ -131,13 +150,14 @@ export default function AICoaching() {
       setProfile(profileData);
 
       // 2. Generate Syllabus using Gemini
+      const { generateContent } = await getAI();
       const model = "gemini-3-flash-preview";
       const prompt = `Generate a detailed subject-wise syllabus for the ${setupData.examType} exam. 
       The subjects are: ${Object.keys(setupData.teachers).join(', ')}.
       For each subject, list 5-8 key topics in a logical learning order.
       Return the response as a JSON array of objects with 'subject' and 'topicName' fields.`;
 
-      const result = await genAI.models.generateContent({
+      const result = await generateContent({
         model,
         contents: prompt,
         config: {
@@ -200,6 +220,7 @@ export default function AICoaching() {
     setGenerating(true);
 
     try {
+      const { generateContent } = await getAI();
       const model = "gemini-3-flash-preview";
       const prompt = `I am studying for the ${profile?.examType} exam. 
       The topic is ${selectedTopic.topicName} in ${selectedTopic.subject}.
@@ -207,7 +228,7 @@ export default function AICoaching() {
       Please generate a 5-question multiple choice test based on the concepts typically covered in such a video for this exam.
       Return the response as a JSON object with a 'questions' array. Each question should have 'text', 'options' (array of 4), and 'correctIndex' (number).`;
 
-      const result = await genAI.models.generateContent({
+      const result = await generateContent({
         model,
         contents: prompt,
         config: {
@@ -360,7 +381,7 @@ export default function AICoaching() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {['Mathematics', 'Reasoning', 'English', 'General Awareness'].map((subject) => (
+                {(EXAM_SUBJECTS[setupData.examType] || EXAM_SUBJECTS['Other']).map((subject) => (
                   <div key={subject} className="space-y-3">
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">{subject}</label>
                     <div className="relative group">

@@ -43,9 +43,6 @@ export default defineConfig(({mode}) => {
         }
       })
     ],
-    define: {
-      'process.env': env
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

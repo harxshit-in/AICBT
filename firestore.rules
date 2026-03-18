@@ -187,9 +187,9 @@ service cloud.firestore {
     }
 
     match /ai_coaching_profiles/{profileId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow read: if isAuthenticated() && (request.auth.uid == profileId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == profileId && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == profileId;
     }
 
     match /ai_coaching_topics/{topicId} {
