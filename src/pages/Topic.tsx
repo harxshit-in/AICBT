@@ -11,11 +11,13 @@ export default function Topic() {
   const [topic, setTopic] = useState<any>(null);
   const [content, setContent] = useState('');
   const [isApproved, setIsApproved] = useState(false);
+  const [isJoined, setIsJoined] = useState(false);
   const [hasRequested, setHasRequested] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleELI5 = async (msgContent: string) => {
+    if (!isApproved) return;
     setAiLoading(true);
     try {
       const ai = await getAI();
@@ -37,7 +39,7 @@ export default function Topic() {
   };
 
   const handleAIDoubtSolve = async () => {
-    if (!content.trim() || !id) return;
+    if (!content.trim() || !id || !isApproved) return;
     const doubt = content;
     setContent('');
     setAiLoading(true);
@@ -61,6 +63,27 @@ export default function Topic() {
     }
   };
 
+  const handleSummarizeTopic = async () => {
+    if (!id || !isApproved || messages.length === 0) return;
+    setAiLoading(true);
+    try {
+      const ai = await getAI();
+      const recentMessages = messages.slice(-20).map(m => `${m.senderName}: ${m.content}`).join('\n');
+      const prompt = `Summarize the recent discussion in this topic. Here are the messages:\n${recentMessages}\n\nProvide a concise summary of the key points discussed. Use Markdown.`;
+      
+      const response = await withRetry(() => ai.generateContent({
+        contents: [{ parts: [{ text: prompt }] }],
+        feature: 'TOPIC_SUMMARIZER'
+      }));
+      
+      await sendMessage(id, 'ai_tutor_bot', 'text', `🤖 **AI Topic Summary:**\n\n${response.text}`);
+    } catch (err) {
+      console.error("Summarizer Error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (id && auth.currentUser) {
       getTopicDetails(id).then(setTopic);
@@ -71,6 +94,7 @@ export default function Topic() {
 
       const unsubscribeMember = listenToTopicMember(id, auth.currentUser.uid, (member) => {
         setIsApproved(member?.role === 'approved_poster' || member?.role === 'admin');
+        setIsJoined(member?.status === 'joined');
         setHasRequested(member?.status === 'pending_approval');
       });
 
@@ -124,11 +148,24 @@ export default function Topic() {
             </p>
           </div>
         </div>
-        {!isApproved && topic?.status !== 'closed' && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
-            <span className="text-[10px] font-black uppercase tracking-wider">Read Only</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isApproved && topic?.status === 'open' && (
+            <button 
+              onClick={handleSummarizeTopic}
+              disabled={aiLoading || messages.length === 0}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              title="Summarize Discussion"
+            >
+              <Brain size={16} />
+              <span className="text-[10px] font-black uppercase tracking-wider hidden sm:inline">Summarize</span>
+            </button>
+          )}
+          {!isApproved && topic?.status !== 'closed' && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
+              <span className="text-[10px] font-black uppercase tracking-wider">Read Only</span>
+            </div>
+          )}
+        </div>
       </header>
       
       {/* Messages Area */}
@@ -154,8 +191,12 @@ export default function Topic() {
               )}
               <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                 {!isMe && (
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${showAvatar ? 'bg-blue-50 text-blue-500' : 'opacity-0'}`}>
-                    {msg.senderName?.charAt(0) || '?'}
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm ${
+                    msg.userId === 'ai_tutor_bot' 
+                      ? 'bg-indigo-600 text-white' 
+                      : showAvatar ? 'bg-blue-50 text-blue-500' : 'opacity-0'
+                  }`}>
+                    {msg.userId === 'ai_tutor_bot' ? <Sparkles size={16} /> : (msg.senderName?.charAt(0) || '?')}
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
@@ -165,7 +206,7 @@ export default function Topic() {
                       : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none'
                   }`}>
                     {msg.content}
-                    {!isMe && msg.userId !== 'ai_tutor_bot' && (
+                    {!isMe && msg.userId !== 'ai_tutor_bot' && isApproved && (
                       <button 
                         onClick={() => handleELI5(msg.content)}
                         className="absolute -right-10 top-1/2 -translate-y-1/2 p-2 bg-white shadow-sm border border-slate-100 rounded-xl text-blue-500 opacity-0 group-hover/msg:opacity-100 transition-all hover:scale-110"

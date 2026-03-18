@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Headphones, Search, Loader2, Play, Pause, RefreshCcw, Download, FileText, CheckCircle2, Key, Settings } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { generateSummaryText, generateSummaryAudio, generateTestFromSummary } from '../utils/aiSummary';
 import { saveBank, generateBankId } from '../utils/storage';
+import { logFeatureUsage } from '../utils/firebase';
 import ErrorDialog from '../components/ErrorDialog';
 
 const EXAMS = [
@@ -55,9 +57,11 @@ export default function AISummary() {
       setAudioUrl(audio);
       
       setIsGenerated(true);
+      await logFeatureUsage('ai_summary', 'gemini-3-flash-preview', true);
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating summary.');
       setShowErrorDialog(true);
+      await logFeatureUsage('ai_summary', 'gemini-3-flash-preview', false);
     } finally {
       setLoading(false);
     }
@@ -305,9 +309,7 @@ export default function AISummary() {
                 Summary Transcript
               </h3>
               <div className="prose prose-slate prose-lg max-w-none prose-p:text-slate-600 prose-p:leading-relaxed">
-                {summaryText.split('\\n').map((paragraph, idx) => (
-                  <p key={idx}>{paragraph}</p>
-                ))}
+                <Markdown>{summaryText}</Markdown>
               </div>
             </div>
           </motion.div>

@@ -57,13 +57,20 @@ export default function StudyTools() {
     if (!auth.currentUser) return;
     setLoading(true);
     try {
-      const examsQuery = query(collection(db, "exams"), where("userId", "==", auth.currentUser.uid), orderBy("date", "asc"));
+      const examsQuery = query(collection(db, "exams"), where("userId", "==", auth.currentUser.uid));
       const examsSnap = await getDocs(examsQuery);
-      setExams(examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const examsData = examsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => a.date - b.date);
+      setExams(examsData);
 
-      const sessionsQuery = query(collection(db, "study_sessions"), where("userId", "==", auth.currentUser.uid), orderBy("createdAt", "desc"), limit(10));
+      const sessionsQuery = query(collection(db, "study_sessions"), where("userId", "==", auth.currentUser.uid), limit(50));
       const sessionsSnap = await getDocs(sessionsQuery);
-      setSessions(sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const sessionsData = sessionsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => b.createdAt - a.createdAt)
+        .slice(0, 10);
+      setSessions(sessionsData);
     } catch (err) {
       console.error("Error fetching study data:", err);
     } finally {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, FileText, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, Flame, Trophy, Target, ChevronRight, BookOpen, Clock, Download, Search, CheckCircle2, ScanLine, LayoutGrid, Medal, Users } from 'lucide-react';
+import { Sparkles, FileText, ArrowRight, BrainCircuit, AlignLeft, GraduationCap, Flame, Trophy, Target, ChevronRight, BookOpen, Clock, Download, Search, CheckCircle2, ScanLine, LayoutGrid, Medal, Users, Brain } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getUserStats, UserStats, QuestionBank, getAllBanks, ExamResult, getAllResults } from '../utils/storage';
-import { auth, getUserProfile } from '../utils/firebase';
+import { auth, getUserProfile, getAppConfig } from '../utils/firebase';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [recentTests, setRecentTests] = useState<ExamResult[]>([]);
   const [pdfTests, setPdfTests] = useState<QuestionBank[]>([]);
   const [motivation, setMotivation] = useState('');
+  const [appConfig, setAppConfig] = useState<any>(null);
 
   useEffect(() => {
     getUserStats().then(setStats);
@@ -24,6 +25,7 @@ export default function Dashboard() {
     getAllResults().then(results => {
       setRecentTests(results.sort((a, b) => b.timestamp - a.timestamp).slice(0, 3));
     });
+    getAppConfig().then(setAppConfig);
 
     const motivations = [
       "Success is the sum of small efforts, repeated day in and day out.",
@@ -67,6 +69,63 @@ export default function Dashboard() {
       {/* Main Content Area (Left) */}
       <div className="flex-1 space-y-8">
         
+        {appConfig?.dashboardUpdate && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-start gap-3"
+          >
+            <div className="mt-0.5">
+              <Sparkles className="w-5 h-5 text-indigo-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-indigo-900">Admin Update</h3>
+              <p className="text-sm text-indigo-700 mt-1 whitespace-pre-wrap">{appConfig.dashboardUpdate}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* AI Coaching Banner */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.05 }}
+          onClick={() => navigate('/ai-coaching')}
+          className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 text-white relative overflow-hidden cursor-pointer group shadow-xl shadow-emerald-900/20"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-white/20 transition-all duration-500" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl -ml-16 -mb-16" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-4 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold tracking-widest uppercase">
+                <Sparkles className="w-3 h-3" /> New Feature
+              </div>
+              <h2 className="text-4xl font-bold tracking-tight">AI Coaching 2.0</h2>
+              <p className="text-emerald-50 max-w-md text-lg opacity-90">
+                Personalized syllabus, teacher-guided videos, and AI-generated tests. Target your exam date with precision.
+              </p>
+              <div className="flex flex-wrap gap-4 pt-2 justify-center md:justify-start">
+                <div className="flex items-center gap-2 text-sm font-medium bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm">
+                  <Target className="w-4 h-4" /> Exam Focused
+                </div>
+                <div className="flex items-center gap-2 text-sm font-medium bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm">
+                  <Brain className="w-4 h-4" /> AI Syllabus
+                </div>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <div className="w-32 h-32 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform duration-500">
+                <GraduationCap className="w-16 h-16 text-white" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                <ArrowRight className="w-6 h-6 text-white" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Hero Banner */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

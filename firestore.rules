@@ -45,6 +45,33 @@ service cloud.firestore {
     //   - weekId: string (required)
     //   - updatedAt: number (required)
     //
+    // Collection: exams
+    // Document ID: {examId}
+    // Fields:
+    //   - userId: string (required)
+    //   - name: string (required)
+    //   - date: number (required)
+    //
+    // Collection: ai_coaching_profiles
+    // Document ID: {profileId}
+    // Fields:
+    //   - userId: string (required)
+    //   - examType: string (required)
+    //   - targetDate: number (required)
+    //   - teachers: map (required)
+    //   - createdAt: number (required)
+    //
+    // Collection: ai_coaching_topics
+    // Document ID: {topicId}
+    // Fields:
+    //   - userId: string (required)
+    //   - subject: string (required)
+    //   - topicName: string (required)
+    //   - status: string (required, 'pending', 'completed')
+    //   - videoUrl: string (optional)
+    //   - testResult: map (optional)
+    //   - order: number (required)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -125,6 +152,8 @@ service cloud.firestore {
       allow create: if isAuthenticated();
     }
 
+    // --- New Features Rules ---
+
     match /mock_tests/{testId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -155,6 +184,23 @@ service cloud.firestore {
 
     match /whiteboard_data/{sessionId} {
       allow read, write: if isAuthenticated();
+    }
+
+    match /ai_coaching_profiles/{profileId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    match /ai_coaching_topics/{topicId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    match /app_config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Default deny for other collections

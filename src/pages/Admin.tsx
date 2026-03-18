@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, broadcastNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile, createTopic, closeTopic, getTopics, getTopicMembers, approveUser } from '../utils/firebase';
+import { auth, getAllSharedBanks, updateSharedBank, deleteSharedBank, broadcastNotification, getAnalyticsData, getReportedBugs, getReportedErrors, getAllCurrentAffairs, updateCurrentAffairsStatus, getAnalyticsUsage, getUserProfile, createTopic, closeTopic, getTopics, getTopicMembers, approveUser, getAllMockTests, deleteMockTest, bulkCreateMockTests, getAppConfig, updateAppConfig } from '../utils/firebase';
 import { signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { QuestionBank, Question } from '../utils/storage';
-import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper } from 'lucide-react';
+import { Shield, Check, X, Edit, Trash2, Send, LogOut, Plus, Minus, Save, BarChart3, Users, Share2, FileUp, Brain, Bug, AlertTriangle, Newspaper, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Admin() {
@@ -22,15 +22,19 @@ export default function Admin() {
   const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
   const [reportedBugs, setReportedBugs] = useState<any[]>([]);
   const [reportedErrors, setReportedErrors] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'tests' | 'analytics' | 'bugs' | 'news' | 'community'>('tests');
+  const [activeTab, setActiveTab] = useState<'tests' | 'mock-tests' | 'analytics' | 'bugs' | 'news' | 'community' | 'features'>('features');
   const [news, setNews] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicImage, setNewTopicImage] = useState('');
+  const [mockTests, setMockTests] = useState<any[]>([]);
+  const [bulkJson, setBulkJson] = useState('');
+  const [isUploadingBulk, setIsUploadingBulk] = useState(false);
 
   const [usageStats, setUsageStats] = useState<any[]>([]);
+  const [appConfig, setAppConfig] = useState<any>({ features: {}, dashboardUpdate: '' });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -54,10 +58,21 @@ export default function Admin() {
       fetchNews();
       fetchUsage();
       fetchTopics();
+      fetchMockTests();
+      fetchAppConfig();
       setLoading(false);
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  const fetchAppConfig = async () => {
+    try {
+      const config = await getAppConfig();
+      setAppConfig(config);
+    } catch (err) {
+      console.error("Failed to fetch app config", err);
+    }
+  };
 
   useEffect(() => {
     if (selectedTopic) {
@@ -68,6 +83,35 @@ export default function Admin() {
   const fetchTopics = async () => {
     const data = await getTopics();
     setTopics(data);
+  };
+
+  const fetchMockTests = async () => {
+    const data = await getAllMockTests();
+    setMockTests(data);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkJson.trim()) return;
+    setIsUploadingBulk(true);
+    try {
+      const tests = JSON.parse(bulkJson);
+      if (!Array.isArray(tests)) throw new Error("JSON must be an array of tests");
+      await bulkCreateMockTests(tests);
+      setBulkJson('');
+      fetchMockTests();
+      alert("Bulk tests uploaded successfully!");
+    } catch (err: any) {
+      console.error("Bulk upload error:", err);
+      alert("Failed to upload bulk tests: " + err.message);
+    } finally {
+      setIsUploadingBulk(false);
+    }
+  };
+
+  const handleDeleteMockTest = async (id: string) => {
+    if (!window.confirm("Delete this mock test?")) return;
+    await deleteMockTest(id);
+    fetchMockTests();
   };
 
   const handleCreateTopic = async () => {
@@ -261,7 +305,13 @@ export default function Admin() {
                   onClick={() => setActiveTab('tests')}
                   className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'tests' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                 >
-                  Manage Tests
+                  User Tests
+                </button>
+                <button 
+                  onClick={() => setActiveTab('mock-tests')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'mock-tests' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Mock Tests
                 </button>
                 <button 
                   onClick={() => setActiveTab('analytics')}
@@ -287,11 +337,131 @@ export default function Admin() {
                 >
                   Community
                 </button>
+                <button 
+                  onClick={() => setActiveTab('features')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${activeTab === 'features' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Features & Settings
+                </button>
               </div>
             </div>
 
+            {activeTab === 'features' && (
+              <div className="space-y-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-indigo-500" />
+                    Global App Settings
+                  </h3>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Dashboard Update Message</label>
+                    <textarea 
+                      value={appConfig.dashboardUpdate || ''}
+                      onChange={e => setAppConfig({ ...appConfig, dashboardUpdate: e.target.value })}
+                      placeholder="Enter a message to display on the user dashboard..."
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-slate-400 text-sm font-medium h-24 resize-none"
+                    />
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      await updateAppConfig(appConfig);
+                      alert("App settings updated!");
+                    }}
+                    className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-emerald-500" />
+                    AI Feature Toggles
+                  </h3>
+                  <p className="text-sm text-slate-500">Lock features or restrict them to logged-in users only.</p>
+                  
+                  {['ai_summary', 'ai_vidyalay', 'ai_coaching', 'pdf_to_cbt', 'mock_tests', 'study_tools'].map(featureKey => {
+                    const featureConfig = appConfig.features?.[featureKey] || { isLocked: false, requiresLogin: false };
+                    
+                    return (
+                      <div key={featureKey} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-900 capitalize">{featureKey.replace(/_/g, ' ')}</p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={featureConfig.requiresLogin}
+                              onChange={async (e) => {
+                                const newConfig = {
+                                  ...appConfig,
+                                  features: {
+                                    ...appConfig.features,
+                                    [featureKey]: { ...featureConfig, requiresLogin: e.target.checked }
+                                  }
+                                };
+                                setAppConfig(newConfig);
+                                await updateAppConfig(newConfig);
+                              }}
+                              className="w-4 h-4 text-indigo-600 rounded"
+                            />
+                            Requires Login
+                          </label>
+                          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={featureConfig.isLocked}
+                              onChange={async (e) => {
+                                const newConfig = {
+                                  ...appConfig,
+                                  features: {
+                                    ...appConfig.features,
+                                    [featureKey]: { ...featureConfig, isLocked: e.target.checked }
+                                  }
+                                };
+                                setAppConfig(newConfig);
+                                await updateAppConfig(newConfig);
+                              }}
+                              className="w-4 h-4 text-red-600 rounded"
+                            />
+                            Locked (Disabled)
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'community' && (
               <div className="space-y-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-indigo-500" />
+                    Suggested Future Features
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                      <p className="font-bold text-sm">AI Interview Prep</p>
+                      <p className="text-xs text-slate-500">Voice-based mock interviews for banking/SSC exams using Gemini Real-time API.</p>
+                    </div>
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                      <p className="font-bold text-sm">Smart Flashcards</p>
+                      <p className="text-xs text-slate-500">Auto-generated flashcards from user-uploaded PDFs or notes using AI analysis.</p>
+                    </div>
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                      <p className="font-bold text-sm">Peer-to-Peer Mentorship</p>
+                      <p className="text-xs text-slate-500">A system to connect experienced users (mentors) with beginners for guided study.</p>
+                    </div>
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                      <p className="font-bold text-sm">Exam Probability Heatmap</p>
+                      <p className="text-xs text-slate-500">Visual map of topics based on historical frequency in previous year papers.</p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                   <h3 className="text-lg font-bold">Create New Topic</h3>
                   <input type="text" placeholder="Topic Name" value={newTopicName} onChange={e => setNewTopicName(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none" />
@@ -330,6 +500,47 @@ export default function Admin() {
                       {members.filter(m => m.status === 'pending_approval').length === 0 && <p className="text-slate-500">No pending approvals.</p>}
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'mock-tests' && (
+              <div className="space-y-8">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <FileUp className="w-5 h-5 text-blue-500" />
+                    Bulk JSON Upload
+                  </h3>
+                  <p className="text-xs text-slate-500">Paste an array of test objects. Each object should have: title, subject, and questions (array of objects with question, options, correctAnswer).</p>
+                  <textarea 
+                    value={bulkJson}
+                    onChange={e => setBulkJson(e.target.value)}
+                    placeholder='[{"title": "SSC Math", "subject": "Mathematics", "questions": [...]}]'
+                    className="w-full p-4 bg-white border border-slate-200 rounded-xl outline-none font-mono text-xs h-40"
+                  />
+                  <button 
+                    onClick={handleBulkUpload}
+                    disabled={isUploadingBulk || !bulkJson.trim()}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold disabled:opacity-50"
+                  >
+                    {isUploadingBulk ? 'Uploading...' : 'Upload Bulk Tests'}
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold">Manage Mock Tests</h3>
+                  {mockTests.map(test => (
+                    <div key={test.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold">{test.title}</p>
+                        <p className="text-xs text-slate-500">{test.subject} • {test.questions?.length || 0} Questions</p>
+                      </div>
+                      <button onClick={() => handleDeleteMockTest(test.id)} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {mockTests.length === 0 && <p className="text-slate-500 text-center py-4">No mock tests found.</p>}
                 </div>
               </div>
             )}
@@ -426,16 +637,28 @@ export default function Admin() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5 text-emerald-500" />
-                    Feature & Model Usage
+                    Top AI Features Usage
                   </h3>
                   <div className="space-y-3">
-                    {usageStats.map((stat, idx) => (
+                    {Object.entries(
+                      usageStats.reduce((acc: any, stat: any) => {
+                        if (!acc[stat.feature]) {
+                          acc[stat.feature] = { success: 0, failure: 0, count: 0 };
+                        }
+                        acc[stat.feature].success += stat.success || 0;
+                        acc[stat.feature].failure += stat.failure || 0;
+                        acc[stat.feature].count += stat.count || 0;
+                        return acc;
+                      }, {})
+                    )
+                      .sort(([, a]: any, [, b]: any) => b.count - a.count)
+                      .map(([feature, stats]: any, idx) => (
                       <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <span className="font-bold text-slate-900">{stat.feature} ({stat.model})</span>
+                        <span className="font-bold text-slate-900 capitalize">{feature.replace(/_/g, ' ')}</span>
                         <div className="flex gap-4 text-sm font-medium text-slate-600">
-                          <span>Success: {stat.success || 0}</span>
-                          <span>Failure: {stat.failure || 0}</span>
-                          <span>Total: {stat.count || 0}</span>
+                          <span className="text-emerald-600">Success: {stats.success}</span>
+                          <span className="text-red-500">Failure: {stats.failure}</span>
+                          <span className="text-indigo-600 font-bold">Total: {stats.count}</span>
                         </div>
                       </div>
                     ))}

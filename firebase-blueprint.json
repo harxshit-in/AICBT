@@ -114,6 +114,43 @@
         "date": { "type": "number", "description": "Exam timestamp" }
       },
       "required": ["userId", "name", "date"]
+    },
+    "AICoachingProfile": {
+      "title": "AICoachingProfile",
+      "description": "User's AI Coaching setup",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "examType": { "type": "string" },
+        "targetDate": { "type": "number" },
+        "teachers": { "type": "object", "description": "Subject to teacher name mapping" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "examType", "targetDate", "teachers", "createdAt"]
+    },
+    "AICoachingTopic": {
+      "title": "AICoachingTopic",
+      "description": "A topic in the AI Coaching syllabus",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "topicName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "videoUrl": { "type": "string" },
+        "testResult": { "type": "object" },
+        "order": { "type": "number" }
+      },
+      "required": ["userId", "subject", "topicName", "status", "order"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "features": { "type": "object", "description": "Feature flags" },
+        "dashboardUpdate": { "type": "string", "description": "Dashboard update message" }
+      }
     }
   },
   "firestore": {
@@ -156,6 +193,18 @@
     "/whiteboard_data/{sessionId}": {
       "schema": { "type": "object", "properties": { "lines": { "type": "array" } } },
       "description": "Collaborative whiteboard data"
+    },
+    "/ai_coaching_profiles/{profileId}": {
+      "schema": { "$ref": "AICoachingProfile" },
+      "description": "AI Coaching user profiles"
+    },
+    "/ai_coaching_topics/{topicId}": {
+      "schema": { "$ref": "AICoachingTopic" },
+      "description": "AI Coaching syllabus topics"
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "AppConfig" },
+      "description": "Global application configuration"
     }
   }
 }

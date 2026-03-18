@@ -27,9 +27,11 @@ import BountyBoard from './pages/BountyBoard';
 import Intro from './pages/Intro';
 import Login from './pages/Login';
 import FloatingChat from './components/FloatingChat';
+import AICoaching from './pages/AICoaching';
 import DailyNews from './pages/DailyNews';
 import Leaderboard from './pages/Leaderboard';
 import OnboardingDialog from './components/OnboardingDialog';
+import FeatureGuard from './components/FeatureGuard';
 import { PWAProvider } from './context/PWAContext';
 import { logAnalyticsEvent, auth, getUserProfile } from './utils/firebase';
 
@@ -102,18 +104,19 @@ export default function App() {
                     <Route path="/team-admin" element={<TeamAdmin />} />
                     
                     {/* New Exam Prep Features */}
-                    <Route path="/study-tools" element={<ProtectedRoute><StudyTools /></ProtectedRoute>} />
-                    <Route path="/mock-tests" element={<ProtectedRoute><MockTests /></ProtectedRoute>} />
+                    <Route path="/study-tools" element={<FeatureGuard featureKey="study_tools"><ProtectedRoute><StudyTools /></ProtectedRoute></FeatureGuard>} />
+                    <Route path="/mock-tests" element={<FeatureGuard featureKey="mock_tests"><ProtectedRoute><MockTests /></ProtectedRoute></FeatureGuard>} />
                     <Route path="/whiteboard" element={<ProtectedRoute><Whiteboard /></ProtectedRoute>} />
                     <Route path="/bounty-board" element={<ProtectedRoute><BountyBoard /></ProtectedRoute>} />
+                    <Route path="/ai-coaching" element={<FeatureGuard featureKey="ai_coaching"><ProtectedRoute><AICoaching /></ProtectedRoute></FeatureGuard>} />
                     
                     {/* Locked Features */}
-                    <Route path="/ai-vidyalay" element={<ProtectedRoute><AIVidyalay /></ProtectedRoute>} />
-                    <Route path="/ai-summary" element={<ProtectedRoute><AISummary /></ProtectedRoute>} />
+                    <Route path="/ai-vidyalay" element={<FeatureGuard featureKey="ai_vidyalay"><AIVidyalay /></FeatureGuard>} />
+                    <Route path="/ai-summary" element={<FeatureGuard featureKey="ai_summary"><AISummary /></FeatureGuard>} />
                     <Route path="/community" element={<ProtectedRoute><Community /></ProtectedRoute>} />
                     <Route path="/community/:id" element={<ProtectedRoute><Topic /></ProtectedRoute>} />
-                    <Route path="/all-pdf-to-cbt" element={<ProtectedRoute><AllPdfToCbt /></ProtectedRoute>} />
-                    <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+                    <Route path="/all-pdf-to-cbt" element={<FeatureGuard featureKey="pdf_to_cbt"><AllPdfToCbt /></FeatureGuard>} />
+                    <Route path="/upload" element={<FeatureGuard featureKey="pdf_to_cbt"><Upload /></FeatureGuard>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     
                     <Route path="*" element={<Navigate to="/" replace />} />

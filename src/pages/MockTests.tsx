@@ -48,9 +48,13 @@ export default function MockTests() {
   const fetchTests = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "mock_tests"), orderBy("createdAt", "desc"), limit(10));
+      const q = query(collection(db, "mock_tests"), limit(50));
       const snap = await getDocs(q);
-      setTests(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const testsData = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, 10);
+      setTests(testsData);
     } catch (err) {
       console.error("Error fetching tests:", err);
     } finally {

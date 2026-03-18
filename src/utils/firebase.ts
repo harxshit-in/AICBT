@@ -48,21 +48,26 @@ export async function getSharedBank(id: string): Promise<QuestionBank | null> {
 }
 
 export async function getPublicBanks(): Promise<QuestionBank[]> {
-  const q = query(collection(db, "shared_tests"), orderBy("sharedAt", "desc"), limit(100));
+  const q = query(collection(db, "shared_tests"), limit(100));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    ...doc.data(),
-    bankId: doc.id // Use Firestore ID as bankId for shared tests
-  } as QuestionBank)).filter(bank => bank.approved === true);
+  return querySnapshot.docs
+    .map(doc => ({
+      ...doc.data(),
+      bankId: doc.id
+    } as QuestionBank))
+    .filter(bank => bank.approved === true)
+    .sort((a: any, b: any) => (b.sharedAt || 0) - (a.sharedAt || 0));
 }
 
 export async function getAllSharedBanks(): Promise<QuestionBank[]> {
-  const q = query(collection(db, "shared_tests"), orderBy("sharedAt", "desc"), limit(200));
+  const q = query(collection(db, "shared_tests"), limit(200));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({
-    ...doc.data(),
-    bankId: doc.id
-  } as QuestionBank));
+  return querySnapshot.docs
+    .map(doc => ({
+      ...doc.data(),
+      bankId: doc.id
+    } as QuestionBank))
+    .sort((a: any, b: any) => (b.sharedAt || 0) - (a.sharedAt || 0));
 }
 
 export async function updateSharedBank(id: string, data: Partial<QuestionBank>): Promise<void> {
@@ -93,9 +98,12 @@ export async function broadcastNotification(title: string, body: string, attachm
 }
 
 export async function getNotifications(): Promise<any[]> {
-  const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(20));
+  const q = query(collection(db, "notifications"), limit(50));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, 20);
 }
 
 export async function updateNotification(id: string, data: any): Promise<void> {
@@ -107,9 +115,36 @@ export async function deleteNotification(id: string): Promise<void> {
 }
 
 export async function getAnalyticsUsage(): Promise<any[]> {
-  const q = query(collection(db, "analytics_usage"), orderBy("date", "desc"), limit(100));
+  const q = query(collection(db, "analytics_usage"), limit(100));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''));
+}
+
+export async function getAppConfig(): Promise<any> {
+  const docRef = doc(db, "app_config", "global");
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return docSnap.data();
+  }
+  return { features: {}, dashboardUpdate: '' };
+}
+
+export async function updateAppConfig(data: any): Promise<void> {
+  const docRef = doc(db, "app_config", "global");
+  await setDoc(docRef, data, { merge: true });
+}
+
+export function listenToAppConfig(callback: (config: any) => void) {
+  const docRef = doc(db, "app_config", "global");
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data());
+    } else {
+      callback({ features: {}, dashboardUpdate: '' });
+    }
+  });
 }
 
 export function listenToNotifications(userId: string, callback: (notifications: any[]) => void) {
@@ -144,9 +179,11 @@ export async function logAnalyticsEvent(event: AnalyticsEventType): Promise<void
 
 export async function getAnalyticsData(type: 'daily' | 'monthly'): Promise<any[]> {
   const col = type === 'daily' ? 'analytics_daily' : 'analytics_monthly';
-  const q = query(collection(db, col), orderBy(type === 'daily' ? 'date' : 'month', 'desc'), limit(30));
+  const q = query(collection(db, col), limit(30));
   const snap = await getDocs(q);
-  return snap.docs.map(d => d.data());
+  const data = snap.docs.map(d => d.data());
+  const sortKey = type === 'daily' ? 'date' : 'month';
+  return data.sort((a: any, b: any) => (b[sortKey] || '').localeCompare(a[sortKey] || ''));
 }
 
 export async function reportError(errorDetails: any): Promise<void> {
@@ -174,15 +211,19 @@ export async function reportBug(bugDetails: any): Promise<void> {
 }
 
 export async function getReportedErrors(): Promise<any[]> {
-  const q = query(collection(db, "error_logs"), orderBy("createdAt", "desc"), limit(50));
+  const q = query(collection(db, "error_logs"), limit(50));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 export async function getReportedBugs(): Promise<any[]> {
-  const q = query(collection(db, "bug_reports"), orderBy("createdAt", "desc"), limit(50));
+  const q = query(collection(db, "bug_reports"), limit(50));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 export async function saveUserProfile(uid: string, profile: any): Promise<void> {
@@ -240,17 +281,21 @@ export async function uploadCurrentAffairs(data: any): Promise<string> {
 }
 
 export async function getApprovedCurrentAffairs(): Promise<any[]> {
-  const q = query(collection(db, "current_affairs"), orderBy("createdAt", "desc"), limit(50));
+  const q = query(collection(db, "current_affairs"), limit(100));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs
     .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
-    .filter(item => item.approved === true);
+    .filter(item => item.approved === true)
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, 50);
 }
 
 export async function getAllCurrentAffairs(): Promise<any[]> {
-  const q = query(collection(db, "current_affairs"), orderBy("createdAt", "desc"), limit(100));
+  const q = query(collection(db, "current_affairs"), limit(100));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+  return querySnapshot.docs
+    .map(doc => ({ id: doc.id, ...(doc.data() as any) }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 export async function updateCurrentAffairsStatus(id: string, approved: boolean): Promise<void> {
@@ -369,8 +414,14 @@ export function listenToTopicMember(topicId: string, userId: string, callback: (
 }
 
 export async function sendMessage(topicId: string, userId: string, type: 'text' | 'poll' | 'image', content: string, pollData?: any): Promise<void> {
-  const userProfile = await getUserProfile(userId);
-  const senderName = userProfile?.name || 'User';
+  let senderName = 'User';
+  if (userId === 'ai_tutor_bot') {
+    senderName = 'AI Tutor Bot';
+  } else {
+    const userProfile = await getUserProfile(userId);
+    senderName = userProfile?.name || 'User';
+  }
+  
   await addDoc(collection(db, "messages"), {
     topicId,
     userId,
@@ -411,9 +462,11 @@ export async function addReaction(messageId: string, userId: string, emoji: stri
 }
 
 export async function getTopics(): Promise<any[]> {
-  const q = query(collection(db, "topics"), orderBy("createdAt", "desc"));
+  const q = query(collection(db, "topics"));
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 }
 
 export function listenToMessages(topicId: string, callback: (messages: any[]) => void) {
@@ -458,4 +511,34 @@ export async function getTopicMembers(topicId: string): Promise<any[]> {
   }));
   
   return membersWithDetails;
+}
+
+export async function createMockTest(testData: any): Promise<string> {
+  const docRef = await addDoc(collection(db, "mock_tests"), {
+    ...testData,
+    createdBy: auth.currentUser?.uid,
+    createdAt: Date.now()
+  });
+  return docRef.id;
+}
+
+export async function bulkCreateMockTests(tests: any[]): Promise<void> {
+  const promises = tests.map(test => createMockTest(test));
+  await Promise.all(promises);
+}
+
+export async function deleteMockTest(id: string): Promise<void> {
+  await deleteDoc(doc(db, "mock_tests", id));
+}
+
+export async function updateMockTest(id: string, data: any): Promise<void> {
+  await updateDoc(doc(db, "mock_tests", id), data);
+}
+
+export async function getAllMockTests(): Promise<any[]> {
+  const q = query(collection(db, "mock_tests"));
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
 }

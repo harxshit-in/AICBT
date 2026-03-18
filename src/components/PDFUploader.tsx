@@ -3,7 +3,7 @@ import { Upload, FileText, Loader2, CheckCircle2, AlertCircle } from 'lucide-rea
 import { renderPDFToImages } from '../utils/pdfReader';
 import { extractFromPDF, extractFromImages } from '../utils/aiExtractor';
 import { saveBank, generateBankId } from '../utils/storage';
-import { logAnalyticsEvent } from '../utils/firebase';
+import { logAnalyticsEvent, logFeatureUsage } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import ErrorDialog from './ErrorDialog';
 
@@ -61,11 +61,13 @@ export default function PDFUploader({ onComplete }: { onComplete: () => void }) 
       } else {
         await finalizeExtraction(questions);
       }
+      await logFeatureUsage('pdf_to_cbt', 'gemini-3-flash-preview', true);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'An error occurred during extraction.');
       setStatus('error');
       setShowErrorDialog(true);
+      await logFeatureUsage('pdf_to_cbt', 'gemini-3-flash-preview', false);
     }
   };
 

@@ -123,6 +123,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       title: 'AI TOOLS',
       items: [
+        { name: 'AI Coaching', path: '/ai-coaching', icon: GraduationCap },
         { name: 'Study Tools', path: '/study-tools', icon: Zap },
         { name: 'ParikshAI', path: '/parikshai', icon: Brain },
         { name: 'AI Summary', path: '/ai-summary', icon: Headphones },

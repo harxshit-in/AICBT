@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Brain, Upload, FileText, BarChart3, TrendingUp, Target, Calendar, Download, Settings, Plus, Trash2, Loader2, ChevronRight, ChevronDown, FileUp, ShieldCheck, Zap, Globe, Key } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { Type } from '@google/genai';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
@@ -1024,11 +1025,13 @@ export default function ParikshAI() {
                             </span>
                             <span className="text-slate-400 text-sm font-bold">Q{i + 1}</span>
                           </div>
-                          <p className="font-medium text-slate-800 mb-4">{pq.question}</p>
+                          <div className="prose prose-sm prose-slate max-w-none mb-4">
+                            <Markdown>{pq.question}</Markdown>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                             {pq.options?.map((opt, j) => (
                               <div key={j} className="bg-white border border-slate-200 p-3 rounded-xl text-sm text-slate-600">
-                                {opt}
+                                <Markdown>{opt}</Markdown>
                               </div>
                             ))}
                           </div>
@@ -1038,7 +1041,10 @@ export default function ParikshAI() {
                             </div>
                             {pq.explanation && (
                               <div className="text-sm text-slate-600 bg-white p-3 rounded-xl border border-slate-200">
-                                <span className="font-bold text-slate-800">Explanation:</span> {pq.explanation}
+                                <span className="font-bold text-slate-800">Explanation:</span> 
+                                <div className="prose prose-sm prose-slate max-w-none inline-block ml-1">
+                                  <Markdown>{pq.explanation}</Markdown>
+                                </div>
                               </div>
                             )}
                           </div>

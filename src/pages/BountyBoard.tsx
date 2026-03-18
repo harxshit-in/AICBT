@@ -28,9 +28,13 @@ export default function BountyBoard() {
   const fetchBounties = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "bounties"), orderBy("createdAt", "desc"), limit(20));
+      const q = query(collection(db, "bounties"), limit(50));
       const snap = await getDocs(q);
-      setBounties(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const bountiesData = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))
+        .slice(0, 20);
+      setBounties(bountiesData);
     } catch (err) {
       console.error("Error fetching bounties:", err);
     } finally {

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { GraduationCap, Image as ImageIcon, FileText, Loader2, Search, ArrowRight, BookOpen, ChevronLeft, ChevronRight, Download, BrainCircuit, RefreshCcw, Key, Settings } from 'lucide-react';
 import { generateVidyalayText, generateVidyalaySlides, generateSlideImage, generateVidyalayTest, SlideData } from '../utils/aiVidyalay';
 import { saveBank, generateBankId } from '../utils/storage';
+import { logFeatureUsage } from '../utils/firebase';
 import ReactMarkdown from 'react-markdown';
 import ErrorDialog from '../components/ErrorDialog';
 
@@ -73,9 +74,11 @@ export default function AIVidyalay() {
         };
         generateImagesSequentially();
       }
+      await logFeatureUsage('ai_vidyalay', 'gemini-3-flash-preview', true);
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating content.');
       setShowErrorDialog(true);
+      await logFeatureUsage('ai_vidyalay', 'gemini-3-flash-preview', false);
     } finally {
       setLoading(false);
     }
