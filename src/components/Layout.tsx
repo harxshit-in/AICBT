@@ -106,8 +106,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       items: [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Community', path: '/community', icon: MessageSquare },
-        { name: 'Bounty Board', path: '/bounty-board', icon: Coins },
-        { name: 'Whiteboard', path: '/whiteboard', icon: Edit3 },
         { name: 'AI Vidyalay', path: '/ai-vidyalay', icon: GraduationCap },
         { name: 'Explore', path: '/explore', icon: Globe },
       ]

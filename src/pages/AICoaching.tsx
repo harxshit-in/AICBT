@@ -47,6 +47,7 @@ interface Topic {
   id: string;
   subject: string;
   topicName: string;
+  videoSearchQuery?: string;
   status: 'pending' | 'completed';
   videoUrl?: string;
   testResult?: any;
@@ -153,9 +154,10 @@ export default function AICoaching() {
       const { generateContent } = await getAI();
       const model = "gemini-3-flash-preview";
       const prompt = `Generate a detailed subject-wise syllabus for the ${setupData.examType} exam. 
-      The subjects are: ${Object.keys(setupData.teachers).join(', ')}.
+      The subjects and their teachers are: ${JSON.stringify(setupData.teachers)}.
       For each subject, list 5-8 key topics in a logical learning order.
-      Return the response as a JSON array of objects with 'subject' and 'topicName' fields.`;
+      For each topic, provide a YouTube search query that includes the teacher's name for that subject to find a relevant video.
+      Return the response as a JSON array of objects with 'subject', 'topicName', and 'videoSearchQuery' fields.`;
 
       const result = await generateContent({
         model,
@@ -168,9 +170,10 @@ export default function AICoaching() {
               type: Type.OBJECT,
               properties: {
                 subject: { type: Type.STRING },
-                topicName: { type: Type.STRING }
+                topicName: { type: Type.STRING },
+                videoSearchQuery: { type: Type.STRING }
               },
-              required: ["subject", "topicName"]
+              required: ["subject", "topicName", "videoSearchQuery"]
             }
           }
         }
@@ -184,6 +187,7 @@ export default function AICoaching() {
           userId: user.uid,
           subject: syllabus[i].subject,
           topicName: syllabus[i].topicName,
+          videoSearchQuery: syllabus[i].videoSearchQuery,
           status: 'pending',
           order: i,
           createdAt: Date.now()
@@ -613,7 +617,15 @@ export default function AICoaching() {
                               <Youtube className="w-8 h-8 text-zinc-700" />
                             </div>
                             <div className="space-y-2">
-                              <p className="text-zinc-400">Paste the YouTube video link for this topic from your teacher.</p>
+                              <p className="text-zinc-400">
+                                {selectedTopic.videoSearchQuery ? (
+                                  <>
+                                    AI suggested search: <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedTopic.videoSearchQuery)}`} target="_blank" rel="noopener noreferrer" className="text-emerald-500 hover:underline">{selectedTopic.videoSearchQuery}</a>
+                                  </>
+                                ) : (
+                                  "Paste the YouTube video link for this topic from your teacher."
+                                )}
+                              </p>
                             </div>
                             <div className="flex gap-2">
                               <input

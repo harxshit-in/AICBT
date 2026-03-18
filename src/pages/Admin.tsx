@@ -511,11 +511,11 @@ export default function Admin() {
                     <FileUp className="w-5 h-5 text-blue-500" />
                     Bulk JSON Upload
                   </h3>
-                  <p className="text-xs text-slate-500">Paste an array of test objects. Each object should have: title, subject, and questions (array of objects with question, options, correctAnswer).</p>
+                  <p className="text-xs text-slate-500">Paste an array of test objects. Each object should have: title, subject, questions (array of objects with question, options, correctAnswer), time (in minutes, optional), and negativeMarking (optional, e.g., 0.25 for 1/4th mark penalty).</p>
                   <textarea 
                     value={bulkJson}
                     onChange={e => setBulkJson(e.target.value)}
-                    placeholder='[{"title": "SSC Math", "subject": "Mathematics", "questions": [...]}]'
+                    placeholder='[{"title": "SSC Math", "subject": "Mathematics", "time": 60, "negativeMarking": 0.25, "questions": [...]}]'
                     className="w-full p-4 bg-white border border-slate-200 rounded-xl outline-none font-mono text-xs h-40"
                   />
                   <button 
