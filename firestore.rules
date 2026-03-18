@@ -186,16 +186,40 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    function isValidAICoachingProfile(data) {
+      return hasOnlyAllowedFields(['userId', 'examType', 'targetDate', 'teachers', 'createdAt']) &&
+             data.userId is string && data.userId.size() < 50 &&
+             data.examType is string && data.examType.size() < 50 &&
+             data.targetDate is number &&
+             data.teachers is map &&
+             data.createdAt is number;
+    }
+
     match /ai_coaching_profiles/{profileId} {
-      allow read: if isAuthenticated() && (request.auth.uid == profileId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == profileId && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if isAuthenticated() && request.auth.uid == profileId;
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == profileId && request.auth.uid == request.resource.data.userId && isValidAICoachingProfile(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == profileId && isValidAICoachingProfile(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && request.auth.uid == profileId;
+    }
+
+    function isValidAICoachingTopic(data) {
+      return hasOnlyAllowedFields(['userId', 'subject', 'topicName', 'videoSearchQuery', 'status', 'videoUrl', 'testResult', 'order', 'createdAt']) &&
+             data.userId is string && data.userId.size() < 50 &&
+             data.subject is string && data.subject.size() < 50 &&
+             data.topicName is string && data.topicName.size() < 200 &&
+             (!('videoSearchQuery' in data) || (data.videoSearchQuery is string && data.videoSearchQuery.size() < 500)) &&
+             data.status in ['pending', 'completed'] &&
+             (!('videoUrl' in data) || (data.videoUrl is string && data.videoUrl.size() < 500)) &&
+             (!('testResult' in data) || data.testResult is map) &&
+             data.order is number &&
+             data.createdAt is number;
     }
 
     match /ai_coaching_topics/{topicId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
-      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId && isValidAICoachingTopic(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId && isValidAICoachingTopic(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 
     match /app_config/{configId} {
