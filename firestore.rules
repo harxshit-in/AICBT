@@ -108,7 +108,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && hasOnlyAllowedFields(['email', 'name', 'photoURL', 'createdAt']);
-      allow update: if isOwner(userId) && hasOnlyAllowedFields(['email', 'name', 'photoURL', 'createdAt', 'updatedAt', 'role', 'warningLevel', 'isBlocked']) && 
+      allow update: if isOwner(userId) && hasOnlyAllowedFields(['email', 'name', 'photoURL', 'createdAt', 'updatedAt', 'role', 'warningLevel', 'isBlocked', 'exam', 'onboardingCompleted', 'userSubjects', 'userSyllabus']) && 
                     (request.resource.data.role == resource.data.role || isAdmin());
     }
 

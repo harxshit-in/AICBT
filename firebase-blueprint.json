@@ -143,15 +143,21 @@
       },
       "required": ["userId", "subject", "topicName", "status", "order"]
     },
-    "AppConfig": {
-      "title": "AppConfig",
-      "description": "Global application configuration",
+    "User": {
+      "title": "User",
+      "description": "User profile",
       "type": "object",
       "properties": {
-        "features": { "type": "object", "description": "Feature flags" },
-        "dashboardUpdate": { "type": "string", "description": "Dashboard update message" }
-      }
-    }
+        "id": { "type": "string" },
+        "exam": { "type": "string" },
+        "onboardingCompleted": { "type": "boolean" },
+        "userSubjects": { "type": "array", "items": { "type": "object" } },
+        "userSyllabus": { "type": "object" },
+        "lastStudyDate": { "type": "string" },
+        "currentStreak": { "type": "number" }
+      },
+      "required": ["id", "onboardingCompleted"]
+    },
   },
   "firestore": {
     "/topics/{topicId}": {

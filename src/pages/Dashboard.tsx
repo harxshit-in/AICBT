@@ -85,12 +85,12 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* AI Coaching Banner */}
+        {/* AI School Banner */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.05 }}
-          onClick={() => navigate('/ai-coaching')}
+          onClick={() => navigate('/ai-school')}
           className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-8 text-white relative overflow-hidden cursor-pointer group shadow-xl shadow-emerald-900/20"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-white/20 transition-all duration-500" />
@@ -101,9 +101,9 @@ export default function Dashboard() {
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold tracking-widest uppercase">
                 <Sparkles className="w-3 h-3" /> New Feature
               </div>
-              <h2 className="text-4xl font-bold tracking-tight">AI Coaching 2.0</h2>
+              <h2 className="text-4xl font-bold tracking-tight">AI School</h2>
               <p className="text-emerald-50 max-w-md text-lg opacity-90">
-                Personalized syllabus, teacher-guided videos, and AI-generated tests. Target your exam date with precision.
+                Personalized syllabus, teacher-guided videos, and AI-powered roadmap. Target your exam date with precision.
               </p>
               <div className="flex flex-wrap gap-4 pt-2 justify-center md:justify-start">
                 <div className="flex items-center gap-2 text-sm font-medium bg-black/20 px-4 py-2 rounded-xl backdrop-blur-sm">
