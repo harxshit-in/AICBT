@@ -115,9 +115,9 @@
       },
       "required": ["userId", "name", "date"]
     },
-    "AICoachingProfile": {
-      "title": "AICoachingProfile",
-      "description": "User's AI Coaching setup",
+    "AISchoolProfile": {
+      "title": "AISchoolProfile",
+      "description": "User's AI School setup",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
@@ -128,9 +128,9 @@
       },
       "required": ["userId", "examType", "targetDate", "teachers", "createdAt"]
     },
-    "AICoachingTopic": {
-      "title": "AICoachingTopic",
-      "description": "A topic in the AI Coaching syllabus",
+    "AISchoolTopic": {
+      "title": "AISchoolTopic",
+      "description": "A topic in the AI School syllabus",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
@@ -194,13 +194,13 @@
       "schema": { "type": "object", "properties": { "lines": { "type": "array" } } },
       "description": "Collaborative whiteboard data"
     },
-    "/ai_coaching_profiles/{profileId}": {
-      "schema": { "$ref": "AICoachingProfile" },
-      "description": "AI Coaching user profiles"
+    "/ai_school_profiles/{profileId}": {
+      "schema": { "$ref": "AISchoolProfile" },
+      "description": "AI School user profiles"
     },
-    "/ai_coaching_topics/{topicId}": {
-      "schema": { "$ref": "AICoachingTopic" },
-      "description": "AI Coaching syllabus topics"
+    "/ai_school_topics/{topicId}": {
+      "schema": { "$ref": "AISchoolTopic" },
+      "description": "AI School syllabus topics"
     },
     "/app_config/{configId}": {
       "schema": { "$ref": "AppConfig" },

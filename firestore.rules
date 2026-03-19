@@ -186,7 +186,7 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    function isValidAICoachingProfile(data) {
+    function isValidAISchoolProfile(data) {
       return hasOnlyAllowedFields(['userId', 'examType', 'targetDate', 'teachers', 'createdAt']) &&
              data.userId is string && data.userId.size() < 50 &&
              data.examType is string && data.examType.size() < 50 &&
@@ -195,14 +195,14 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
-    match /ai_coaching_profiles/{profileId} {
+    match /ai_school_profiles/{profileId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == profileId && request.auth.uid == request.resource.data.userId && isValidAICoachingProfile(request.resource.data);
-      allow update: if isAuthenticated() && request.auth.uid == profileId && isValidAICoachingProfile(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
+      allow create: if isAuthenticated() && request.auth.uid == profileId && request.auth.uid == request.resource.data.userId && isValidAISchoolProfile(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == profileId && isValidAISchoolProfile(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isAuthenticated() && request.auth.uid == profileId;
     }
 
-    function isValidAICoachingTopic(data) {
+    function isValidAISchoolTopic(data) {
       return hasOnlyAllowedFields(['userId', 'subject', 'topicName', 'videoSearchQuery', 'status', 'videoUrl', 'testResult', 'order', 'createdAt']) &&
              data.userId is string && data.userId.size() < 50 &&
              data.subject is string && data.subject.size() < 50 &&
@@ -215,10 +215,10 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
-    match /ai_coaching_topics/{topicId} {
+    match /ai_school_topics/{topicId} {
       allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId && isValidAICoachingTopic(request.resource.data);
-      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId && isValidAICoachingTopic(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId && isValidAISchoolTopic(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId && isValidAISchoolTopic(request.resource.data) && request.resource.data.userId == resource.data.userId && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 

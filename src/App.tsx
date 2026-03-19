@@ -27,7 +27,7 @@ import BountyBoard from './pages/BountyBoard';
 import Intro from './pages/Intro';
 import Login from './pages/Login';
 import FloatingChat from './components/FloatingChat';
-import AICoaching from './pages/AICoaching';
+import AISchool from './pages/AISchool';
 import DailyNews from './pages/DailyNews';
 import Leaderboard from './pages/Leaderboard';
 import OnboardingDialog from './components/OnboardingDialog';
@@ -108,7 +108,7 @@ export default function App() {
                     <Route path="/mock-tests" element={<FeatureGuard featureKey="mock_tests"><ProtectedRoute><MockTests /></ProtectedRoute></FeatureGuard>} />
                     <Route path="/whiteboard" element={<ProtectedRoute><Whiteboard /></ProtectedRoute>} />
                     <Route path="/bounty-board" element={<ProtectedRoute><BountyBoard /></ProtectedRoute>} />
-                    <Route path="/ai-coaching" element={<FeatureGuard featureKey="ai_coaching"><ProtectedRoute><AICoaching /></ProtectedRoute></FeatureGuard>} />
+                    <Route path="/ai-school" element={<FeatureGuard featureKey="ai_school"><ProtectedRoute><AISchool /></ProtectedRoute></FeatureGuard>} />
                     
                     {/* Locked Features */}
                     <Route path="/ai-vidyalay" element={<FeatureGuard featureKey="ai_vidyalay"><AIVidyalay /></FeatureGuard>} />
